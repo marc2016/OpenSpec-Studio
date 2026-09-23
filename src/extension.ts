@@ -48,6 +48,28 @@ export function activate(context: vscode.ExtensionContext) {
     specsTreeDataProvider.refresh();
   });
 
+  const openFileRangeCmd = vscode.commands.registerCommand(
+    'openspec-studio.openFileRange',
+    async (target: string | vscode.Uri, startLine: number = 0, endLine: number = startLine) => {
+      try {
+        const uri = typeof target === 'string' ? vscode.Uri.file(target) : target;
+        const doc = await vscode.workspace.openTextDocument(uri);
+        const editor = await vscode.window.showTextDocument(doc, { preview: false });
+        const safeStartLine = Math.max(0, Math.min(startLine, doc.lineCount - 1));
+        const safeEndLine = Math.max(safeStartLine, Math.min(endLine, doc.lineCount - 1));
+        const endLineLength = doc.lineAt(safeEndLine).text.length;
+        const range = new vscode.Range(
+          new vscode.Position(safeStartLine, 0),
+          new vscode.Position(safeEndLine, endLineLength)
+        );
+        editor.selection = new vscode.Selection(range.start, range.end);
+        editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
+      } catch (err) {
+        console.error('Failed to open file range:', err);
+      }
+    }
+  );
+
   // 4. Status Bar Item
   const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
   statusBarItem.command = 'openspec-studio.openDashboard';
@@ -59,6 +81,7 @@ export function activate(context: vscode.ExtensionContext) {
     openCmd,
     refreshCmd,
     refreshTreeCmd,
+    openFileRangeCmd,
     statusBarItem,
     treeView,
     specsTreeDataProvider

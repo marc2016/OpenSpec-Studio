@@ -164,7 +164,7 @@ export class WorkspaceDetector implements vscode.Disposable {
     }
   }
 
-  private parseSpecFile(specFilePath: string, capabilityId: string): OpenSpecCapability {
+  public parseSpecFile(specFilePath: string, capabilityId: string): OpenSpecCapability {
     try {
       const content = fs.readFileSync(specFilePath, 'utf8');
       const lines = content.split('\n');
@@ -174,6 +174,14 @@ export class WorkspaceDetector implements vscode.Disposable {
       let currentReq: SpecRequirement | null = null;
       let currentScenario: SpecScenario | null = null;
       let inPurpose = false;
+
+      const findLastNonEmptyLine = (start: number, end: number): number => {
+        let last = end;
+        while (last > start && !lines[last].trim()) {
+          last--;
+        }
+        return last;
+      };
 
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
@@ -192,14 +200,26 @@ export class WorkspaceDetector implements vscode.Disposable {
           continue;
         }
 
+        if (line.startsWith('## ') || line.startsWith('# ')) {
+          if (currentReq) {
+            currentReq.endLine = findLastNonEmptyLine(currentReq.startLine ?? 0, i - 1);
+            requirements.push(currentReq);
+            currentReq = null;
+            currentScenario = null;
+          }
+        }
+
         if (line.startsWith('### Requirement:')) {
           if (currentReq) {
+            currentReq.endLine = findLastNonEmptyLine(currentReq.startLine ?? 0, i - 1);
             requirements.push(currentReq);
           }
           currentReq = {
             name: line.replace('### Requirement:', '').trim(),
             description: '',
-            scenarios: []
+            scenarios: [],
+            startLine: i,
+            endLine: i
           };
           currentScenario = null;
           continue;
@@ -231,6 +251,7 @@ export class WorkspaceDetector implements vscode.Disposable {
       }
 
       if (currentReq) {
+        currentReq.endLine = findLastNonEmptyLine(currentReq.startLine ?? 0, lines.length - 1);
         requirements.push(currentReq);
       }
 

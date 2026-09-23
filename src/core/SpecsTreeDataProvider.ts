@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { WorkspaceDetector } from './WorkspaceDetector';
-import { OpenSpecChange, OpenSpecCapability, OpenSpecArchivedChange } from '../shared/types';
+import { OpenSpecChange, OpenSpecCapability, OpenSpecArchivedChange, SpecRequirement } from '../shared/types';
 
 export type SpecsTreeItemType =
   | 'category'
@@ -47,10 +47,19 @@ export class SpecsTreeItem extends vscode.TreeItem {
         this.tooltip = `Durable Spec: ${this.label}`;
         break;
 
-      case 'spec-requirement':
+      case 'spec-requirement': {
         this.iconPath = new vscode.ThemeIcon('check');
         this.tooltip = `Requirement: ${this.label}`;
+        const req = this.contextData?.requirement as SpecRequirement | undefined;
+        if (this.filePath && req && typeof req.startLine === 'number') {
+          this.command = {
+            command: 'openspec-studio.openFileRange',
+            title: 'Open Requirement',
+            arguments: [this.filePath, req.startLine, req.endLine ?? req.startLine]
+          };
+        }
         break;
+      }
 
       case 'change':
         this.iconPath = new vscode.ThemeIcon('git-pull-request');
@@ -280,14 +289,19 @@ export class SpecsTreeDataProvider implements vscode.TreeDataProvider<SpecsTreeI
             if (entry.isDirectory()) {
               const specFilePath = path.join(artPath, entry.name, 'spec.md');
               if (fs.existsSync(specFilePath)) {
-                items.push(
-                  new SpecsTreeItem(
-                    `specs/${entry.name}`,
-                    'artifact-file',
-                    vscode.TreeItemCollapsibleState.None,
-                    specFilePath
-                  )
+                const parsedSpec = this.detector.parseSpecFile(specFilePath, entry.name);
+                const hasReqs = parsedSpec.requirements && parsedSpec.requirements.length > 0;
+                const item = new SpecsTreeItem(
+                  `specs/${entry.name}`,
+                  'spec-capability',
+                  hasReqs ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
+                  specFilePath,
+                  { capability: parsedSpec }
                 );
+                if (hasReqs) {
+                  item.description = `${parsedSpec.requirementsCount} reqs`;
+                }
+                items.push(item);
               }
             }
           }

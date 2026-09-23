@@ -40,6 +40,8 @@ export interface SpecRequirement {
   name: string;
   description: string;
   scenarios: SpecScenario[];
+  startLine?: number;
+  endLine?: number;
 }
 
 export interface OpenSpecCapability {

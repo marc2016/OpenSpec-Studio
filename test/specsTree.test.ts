@@ -104,4 +104,24 @@ describe('SpecsTreeDataProvider', () => {
     treeProvider.refresh();
     expect(fireSpy).toHaveBeenCalled();
   });
+
+  it('configures openFileRange command with line numbers for requirement items', async () => {
+    const rootItems = await treeProvider.getChildren();
+    const specsCategory = rootItems.find(item => item.label === 'Specifications')!;
+    const specItems = await treeProvider.getChildren(specsCategory);
+    const specItem = specItems.find(i => i.label === 'specs-tree-view');
+    expect(specItem).toBeDefined();
+
+    const specChildren = await treeProvider.getChildren(specItem);
+    expect(specChildren.length).toBeGreaterThan(1);
+
+    const reqItem = specChildren.find(c => c.itemType === 'spec-requirement')!;
+    expect(reqItem).toBeDefined();
+    expect(reqItem.command).toBeDefined();
+    expect(reqItem.command.command).toBe('openspec-studio.openFileRange');
+    expect(reqItem.command.arguments[0]).toContain('spec.md');
+    expect(typeof reqItem.command.arguments[1]).toBe('number');
+    expect(typeof reqItem.command.arguments[2]).toBe('number');
+    expect(reqItem.command.arguments[2]).toBeGreaterThanOrEqual(reqItem.command.arguments[1]);
+  });
 });

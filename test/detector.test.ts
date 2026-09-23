@@ -65,4 +65,19 @@ describe('WorkspaceDetector and CliAdapter', () => {
     expect(completedCount).toBe(15);
     expect(studioChange!.status).toBe('Completed');
   });
+
+  it('calculates startLine and endLine for spec requirements', () => {
+    const specPath = path.join(
+      root,
+      'openspec',
+      'specs',
+      'specs-tree-view',
+      'spec.md'
+    );
+    const parsed = (detector as any).parseSpecFile(specPath, 'specs-tree-view');
+    expect(parsed.requirements.length).toBe(2);
+    expect(parsed.requirements[0].startLine).toBeDefined();
+    expect(parsed.requirements[0].endLine).toBeGreaterThan(parsed.requirements[0].startLine);
+    expect(parsed.requirements[1].startLine).toBeGreaterThan(parsed.requirements[0].endLine);
+  });
 });
