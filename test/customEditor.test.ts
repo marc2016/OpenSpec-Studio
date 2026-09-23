@@ -1,5 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import * as path from 'path';
+import * as fs from 'fs';
 import { OpenSpecEditorProvider } from '../src/customEditor/OpenSpecEditorProvider';
 
 // Mock vscode module
@@ -41,6 +42,32 @@ vi.mock('vscode', () => {
 });
 
 describe('OpenSpecEditorProvider', () => {
+  const distWebview = path.resolve(__dirname, '../dist/webview');
+  const indexHtml = path.join(distWebview, 'index.html');
+  let createdDummyHtml = false;
+
+  beforeAll(() => {
+    if (!fs.existsSync(indexHtml)) {
+      fs.mkdirSync(distWebview, { recursive: true });
+      fs.writeFileSync(
+        indexHtml,
+        '<!DOCTYPE html><html><head><script src="./assets/index.js"></script></head><body><div id="root"></div></body></html>',
+        'utf8'
+      );
+      createdDummyHtml = true;
+    }
+  });
+
+  afterAll(() => {
+    if (createdDummyHtml && fs.existsSync(indexHtml)) {
+      try {
+        fs.unlinkSync(indexHtml);
+      } catch {
+        // ignore
+      }
+    }
+  });
+
   const mockContext: any = {
     extensionUri: { fsPath: path.resolve(__dirname, '..') }
   };
