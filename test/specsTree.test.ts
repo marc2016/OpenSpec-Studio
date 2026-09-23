@@ -92,10 +92,18 @@ describe('SpecsTreeDataProvider', () => {
 
     const proposalItem = artifacts.find(a => a.label === 'proposal.md')!;
     expect(proposalItem.command).toBeDefined();
-    expect(proposalItem.command.command).toBe('vscode.open');
+    expect(proposalItem.command.command).toBe('openspec-studio.openInCustomEditor');
     expect(proposalItem.command.arguments[0].fsPath).toContain('proposal.md');
     expect(proposalItem.iconPath).toBeDefined();
     expect((proposalItem.iconPath as any).id).toBe('lightbulb');
+
+    const designItem = artifacts.find(a => a.label === 'design.md')!;
+    expect(designItem.command).toBeDefined();
+    expect(designItem.command.command).toBe('openspec-studio.openInCustomEditor');
+
+    const tasksItem = artifacts.find(a => a.label === 'tasks.md')!;
+    expect(tasksItem.command).toBeDefined();
+    expect(tasksItem.command.command).toBe('openspec-studio.openInCustomEditor');
   });
 
   it('triggers change event on refresh', () => {

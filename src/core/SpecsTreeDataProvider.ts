@@ -86,6 +86,13 @@ export class SpecsTreeItem extends vscode.TreeItem {
         } else {
           this.iconPath = new vscode.ThemeIcon('file');
         }
+        if (this.filePath && /\.md$/i.test(this.filePath)) {
+          this.command = {
+            command: 'openspec-studio.openInCustomEditor',
+            title: 'Open in OpenSpec Markdown Editor',
+            arguments: [vscode.Uri.file(this.filePath)]
+          };
+        }
         break;
       }
 
@@ -328,13 +335,6 @@ export class SpecsTreeDataProvider implements vscode.TreeDataProvider<SpecsTreeI
           vscode.TreeItemCollapsibleState.None,
           artPath
         );
-        if (basename === 'spec.md') {
-          item.command = {
-            command: 'openspec-studio.openInCustomEditor',
-            title: 'Open in OpenSpec Markdown Editor',
-            arguments: [vscode.Uri.file(artPath)]
-          };
-        }
         if (basename === 'tasks.md' && change.totalTasks > 0) {
           item.description = `${change.completedTasks}/${change.totalTasks}`;
         }
