@@ -20,7 +20,7 @@
   "activationEvents": [
     "onStartupFinished",
     "onCommand:openspec-studio.openDashboard",
-    "onView:openspec-studio.sidebarView"
+    "onView:openspec-studio.specsTree"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -38,6 +38,20 @@
         "icon": "$(refresh)"
       }
     ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "openspec-studio.refresh",
+          "when": "view == openspec-studio.specsTree",
+          "group": "navigation@1"
+        },
+        {
+          "command": "openspec-studio.openDashboard",
+          "when": "view == openspec-studio.specsTree",
+          "group": "navigation@2"
+        }
+      ]
+    },
     "viewsContainers": {
       "activitybar": [
         {
@@ -50,12 +64,17 @@
     "views": {
       "openspec-studio": [
         {
-          "type": "webview",
-          "id": "openspec-studio.sidebarView",
-          "name": "OpenSpec Overview"
+          "id": "openspec-studio.specsTree",
+          "name": "OpenSpec Explorer"
         }
       ]
     },
+    "viewsWelcome": [
+      {
+        "view": "openspec-studio.specsTree",
+        "contents": "No OpenSpec project detected in this workspace.\n[Open Studio Dashboard](command:openspec-studio.openDashboard)"
+      }
+    ],
     "configuration": {
       "title": "OpenSpec Studio",
       "properties": {
