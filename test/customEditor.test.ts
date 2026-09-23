@@ -1,0 +1,121 @@
+import { describe, it, expect, vi } from 'vitest';
+import * as path from 'path';
+import { OpenSpecEditorProvider } from '../src/customEditor/OpenSpecEditorProvider';
+
+// Mock vscode module
+vi.mock('vscode', () => {
+  const registerCustomEditorProvider = vi.fn().mockReturnValue({ dispose: vi.fn() });
+  const executeCommand = vi.fn();
+  const applyEdit = vi.fn().mockResolvedValue(true);
+
+  return {
+    window: {
+      registerCustomEditorProvider,
+      showErrorMessage: vi.fn()
+    },
+    commands: {
+      executeCommand
+    },
+    workspace: {
+      applyEdit,
+      onDidChangeTextDocument: vi.fn().mockReturnValue({ dispose: vi.fn() })
+    },
+    Uri: {
+      file: (f: string) => ({ fsPath: f, toString: () => f, scheme: 'file' }),
+      joinPath: (base: any, ...segments: string[]) => ({
+        fsPath: path.join(base.fsPath || base, ...segments),
+        toString: () => path.join(base.fsPath || base, ...segments)
+      })
+    },
+    Range: class {
+      constructor(public start: any, public end: any) {}
+    },
+    Position: class {
+      constructor(public line: number, public character: number) {}
+    },
+    WorkspaceEdit: class {
+      public replace = vi.fn();
+    }
+  };
+});
+
+describe('OpenSpecEditorProvider', () => {
+  const mockContext: any = {
+    extensionUri: { fsPath: path.resolve(__dirname, '..') }
+  };
+
+  it('exposes the correct viewType', () => {
+    expect(OpenSpecEditorProvider.viewType).toBe('openspec.markdownEditor');
+  });
+
+  it('registers custom editor provider with vscode.window', async () => {
+    const vscode = await import('vscode');
+    const disposable = OpenSpecEditorProvider.register(mockContext);
+    expect(disposable).toBeDefined();
+    expect(vscode.window.registerCustomEditorProvider).toHaveBeenCalledWith(
+      'openspec.markdownEditor',
+      expect.any(OpenSpecEditorProvider),
+      expect.objectContaining({
+        webviewOptions: { retainContextWhenHidden: true }
+      })
+    );
+  });
+
+  it('resolves custom text editor and initializes webview', async () => {
+    const provider = new OpenSpecEditorProvider(mockContext);
+    const postMessageSpy = vi.fn();
+    let messageHandler: ((msg: any) => Promise<void>) | undefined;
+
+    const mockWebview: any = {
+      options: {},
+      html: '',
+      postMessage: postMessageSpy,
+      onDidReceiveMessage: vi.fn().mockImplementation((handler) => {
+        messageHandler = handler;
+        return { dispose: vi.fn() };
+      }),
+      asWebviewUri: (uri: any) => uri.toString()
+    };
+
+    const mockWebviewPanel: any = {
+      webview: mockWebview,
+      onDidDispose: vi.fn()
+    };
+
+    const sampleDoc: any = {
+      uri: { fsPath: '/test/openspec/specs/vault/spec.md', toString: () => '/test/openspec/specs/vault/spec.md' },
+      getText: () => '# Vault Spec\n\n## Purpose\nSample spec',
+      positionAt: (offset: number) => ({ line: 0, character: offset })
+    };
+
+    await provider.resolveCustomTextEditor(sampleDoc, mockWebviewPanel, {} as any);
+
+    expect(mockWebview.options.enableScripts).toBe(true);
+    expect(mockWebview.html).toContain('window.OPENSPEC_MODE = "editor"');
+    expect(mockWebview.html).toContain('window.OPENSPEC_DATA =');
+    expect(mockWebview.html).toContain('connect-src');
+    expect(postMessageSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'INIT_EDITOR',
+        filePath: '/test/openspec/specs/vault/spec.md',
+        content: sampleDoc.getText()
+      })
+    );
+
+    // Test message handling: DOCUMENT_EDIT
+    const vscode = await import('vscode');
+    expect(messageHandler).toBeDefined();
+    if (messageHandler) {
+      await messageHandler({ command: 'DOCUMENT_EDIT', text: '# Updated Spec' });
+      expect(vscode.workspace.applyEdit).toHaveBeenCalled();
+
+      // Test message handling: OPEN_IN_DEFAULT_EDITOR
+      await messageHandler({ command: 'OPEN_IN_DEFAULT_EDITOR' });
+      expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
+        'vscode.openWith',
+        sampleDoc.uri,
+        'default'
+      );
+    }
+  });
+});

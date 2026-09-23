@@ -4,6 +4,7 @@ import { CliAdapter } from './core/CliAdapter';
 import { WorkflowOrchestrator } from './core/WorkflowOrchestrator';
 import { StudioDashboardPanel } from './core/StudioDashboardPanel';
 import { SpecsTreeDataProvider } from './core/SpecsTreeDataProvider';
+import { OpenSpecEditorProvider } from './customEditor/OpenSpecEditorProvider';
 import { AiTarget } from './shared/types';
 
 export function activate(context: vscode.ExtensionContext) {
@@ -70,7 +71,20 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
-  // 4. Status Bar Item
+  // 4. Custom Markdown Editor Provider
+  const customEditorRegistration = OpenSpecEditorProvider.register(context);
+
+  const openInCustomEditorCmd = vscode.commands.registerCommand(
+    'openspec-studio.openInCustomEditor',
+    async (uri?: vscode.Uri) => {
+      const targetUri = uri || vscode.window.activeTextEditor?.document.uri;
+      if (targetUri) {
+        await vscode.commands.executeCommand('vscode.openWith', targetUri, OpenSpecEditorProvider.viewType);
+      }
+    }
+  );
+
+  // 5. Status Bar Item
   const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
   statusBarItem.command = 'openspec-studio.openDashboard';
   statusBarItem.text = '$(dashboard) OpenSpec Studio';
@@ -82,6 +96,8 @@ export function activate(context: vscode.ExtensionContext) {
     refreshCmd,
     refreshTreeCmd,
     openFileRangeCmd,
+    customEditorRegistration,
+    openInCustomEditorCmd,
     statusBarItem,
     treeView,
     specsTreeDataProvider

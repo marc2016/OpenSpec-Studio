@@ -11,4 +11,383 @@ body {
   margin: 0;
   padding: 0;
   overflow-x: hidden;
+  background-color: var(--vscode-editor-background, #1e1e1e);
+  color: var(--vscode-editor-foreground, #d4d4d4);
 }
+
+/* ==========================================================================
+   VS Code Native Theme Overrides & Typography for OpenSpec MDXEditor
+   ========================================================================== */
+
+/* Editor Root Container */
+.openspec-mdx-editor,
+.openspec-mdx-editor [class*="_editorRoot"] {
+  --baseBase: var(--vscode-editor-background, #1e1e1e) !important;
+  --basePageBg: var(--vscode-editor-background, #1e1e1e) !important;
+  --baseBg: var(--vscode-sideBar-background, #252526) !important;
+  --baseBgHover: var(--vscode-toolbar-hoverBackground, rgba(255, 255, 255, 0.1)) !important;
+  --baseBgActive: var(--vscode-toolbar-activeBackground, rgba(255, 255, 255, 0.18)) !important;
+  --baseText: var(--vscode-editor-foreground, #d4d4d4) !important;
+  --baseTextContrast: var(--vscode-editor-foreground, #ffffff) !important;
+  --baseSubtleText: var(--vscode-descriptionForeground, #999999) !important;
+  --baseBorder: var(--vscode-widget-border, #3c3c3c) !important;
+  --baseBorderHover: var(--vscode-focusBorder, #007acc) !important;
+  --accentBase: var(--vscode-button-background, #0e639c) !important;
+  --accentText: var(--vscode-button-foreground, #ffffff) !important;
+  --accentHover: var(--vscode-button-hoverBackground, #1177bb) !important;
+  --accentSolid: var(--vscode-button-background, #0e639c) !important;
+  font-family: var(--vscode-font-family);
+  color: var(--vscode-editor-foreground, #d4d4d4) !important;
+  background-color: var(--vscode-editor-background, #1e1e1e) !important;
+  border-radius: 8px;
+  border: 1px solid var(--vscode-widget-border, #3a3a3a);
+  overflow: hidden;
+}
+
+/* ==========================================================================
+   Toolbar & Button Styles
+   ========================================================================== */
+
+.openspec-mdx-editor [role="toolbar"],
+.openspec-mdx-editor [class*="_toolbarRoot"] {
+  background-color: var(--vscode-editorWidget-background, var(--vscode-sideBar-background, #252526)) !important;
+  border-bottom: 1px solid var(--vscode-widget-border, #3a3a3a) !important;
+  padding: 6px 10px !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  gap: 4px !important;
+  border-top-left-radius: 8px !important;
+  border-top-right-radius: 8px !important;
+  color: var(--vscode-editor-foreground, #d4d4d4) !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
+}
+
+/* Individual Toolbar Buttons (Bold, Italic, Lists, Code, Table, etc.) */
+.openspec-mdx-editor [role="toolbar"] button,
+.openspec-mdx-editor [role="toolbar"] [role="button"],
+.openspec-mdx-editor [class*="_toolbarButton"],
+.openspec-mdx-editor [class*="_toolbarToggleItem"] {
+  all: unset !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 28px !important;
+  height: 28px !important;
+  padding: 2px 6px !important;
+  border-radius: 4px !important;
+  border: 1px solid var(--vscode-widget-border, rgba(255, 255, 255, 0.12)) !important;
+  background-color: var(--vscode-toolbar-background, rgba(255, 255, 255, 0.05)) !important;
+  color: var(--vscode-icon-foreground, var(--vscode-editor-foreground, #d4d4d4)) !important;
+  cursor: pointer !important;
+  box-sizing: border-box !important;
+  transition: all 0.15s ease !important;
+  user-select: none !important;
+}
+
+/* Button Hover State */
+.openspec-mdx-editor [role="toolbar"] button:hover,
+.openspec-mdx-editor [role="toolbar"] [role="button"]:hover,
+.openspec-mdx-editor [class*="_toolbarButton"]:hover,
+.openspec-mdx-editor [class*="_toolbarToggleItem"]:hover {
+  background-color: var(--vscode-toolbar-hoverBackground, rgba(255, 255, 255, 0.18)) !important;
+  border-color: var(--vscode-focusBorder, #007acc) !important;
+  color: #ffffff !important;
+}
+
+/* Button Active / Pressed / Selected State */
+.openspec-mdx-editor [role="toolbar"] button[data-state="on"],
+.openspec-mdx-editor [role="toolbar"] button[data-active="true"],
+.openspec-mdx-editor [role="toolbar"] button[aria-pressed="true"],
+.openspec-mdx-editor [class*="_toolbarButton"][data-state="on"],
+.openspec-mdx-editor [class*="_toolbarToggleItem"][data-state="on"],
+.openspec-mdx-editor [class*="_activeToolbarButton"] {
+  background-color: var(--vscode-button-background, #0e639c) !important;
+  color: var(--vscode-button-foreground, #ffffff) !important;
+  border-color: var(--vscode-button-background, #0e639c) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* SVG Icons Inside Buttons */
+.openspec-mdx-editor [role="toolbar"] svg,
+.openspec-mdx-editor [class*="_toolbarRoot"] svg {
+  width: 16px !important;
+  height: 16px !important;
+  color: inherit !important;
+  fill: currentColor !important;
+  display: block !important;
+  flex-shrink: 0 !important;
+}
+
+/* Toolbar Separators */
+.openspec-mdx-editor [role="toolbar"] [role="separator"],
+.openspec-mdx-editor [class*="_toolbarRoot"] div[role="separator"] {
+  width: 1px !important;
+  height: 20px !important;
+  background-color: var(--vscode-widget-border, rgba(255, 255, 255, 0.18)) !important;
+  margin: 0 4px !important;
+  border: none !important;
+}
+
+/* Dropdown Trigger (Paragraph, Heading 1, etc.) */
+.openspec-mdx-editor [class*="_selectTrigger"],
+.openspec-mdx-editor [class*="_toolbarNodeKindSelectTrigger"] {
+  background-color: var(--vscode-dropdown-background, #2c2d30) !important;
+  color: var(--vscode-dropdown-foreground, #e0e0e0) !important;
+  border: 1px solid var(--vscode-dropdown-border, #4c4d52) !important;
+  border-radius: 4px !important;
+  height: 28px !important;
+  padding: 2px 10px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  min-width: 110px !important;
+  box-sizing: border-box !important;
+}
+
+.openspec-mdx-editor [class*="_selectTrigger"]:hover,
+.openspec-mdx-editor [class*="_toolbarNodeKindSelectTrigger"]:hover {
+  border-color: var(--vscode-focusBorder, #007acc) !important;
+  background-color: var(--vscode-dropdown-background, #35363a) !important;
+}
+
+/* Dropdown Menu Popup (Radix Select/Popover) */
+[class*="_selectContainer"],
+[data-radix-popper-content-wrapper] [role="listbox"] {
+  background-color: var(--vscode-dropdown-background, #252526) !important;
+  color: var(--vscode-dropdown-foreground, #e0e0e0) !important;
+  border: 1px solid var(--vscode-dropdown-border, #454545) !important;
+  border-radius: 6px !important;
+  padding: 4px !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5) !important;
+  z-index: 1000 !important;
+}
+
+[class*="_selectItem"],
+[data-radix-popper-content-wrapper] [role="option"] {
+  padding: 6px 12px !important;
+  border-radius: 4px !important;
+  font-size: 12px !important;
+  color: var(--vscode-dropdown-foreground, #d4d4d4) !important;
+  cursor: pointer !important;
+}
+
+[class*="_selectItem"][data-highlighted],
+[class*="_selectItem"]:hover,
+[data-radix-popper-content-wrapper] [role="option"][data-highlighted],
+[data-radix-popper-content-wrapper] [role="option"]:hover {
+  background-color: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.12)) !important;
+  color: #ffffff !important;
+}
+
+/* Mode Switcher ("Rich text" vs "Source") */
+.openspec-mdx-editor [class*="_diffSourceToggleWrapper"],
+.openspec-mdx-editor [class*="_toolbarModeSwitch"] {
+  margin-left: auto !important;
+  display: flex !important;
+  align-items: center !important;
+  background-color: var(--vscode-dropdown-background, rgba(0, 0, 0, 0.3)) !important;
+  border: 1px solid var(--vscode-widget-border, #454545) !important;
+  border-radius: 6px !important;
+  padding: 2px !important;
+  gap: 2px !important;
+}
+
+.openspec-mdx-editor [class*="_diffSourceToggleWrapper"] button,
+.openspec-mdx-editor [class*="_toolbarModeSwitch"] [class*="_toolbarToggleItem"] {
+  border: none !important;
+  background-color: transparent !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  padding: 3px 10px !important;
+  height: 24px !important;
+  border-radius: 4px !important;
+  color: var(--vscode-descriptionForeground, #a0a0a0) !important;
+}
+
+.openspec-mdx-editor [class*="_diffSourceToggleWrapper"] button[data-state="on"],
+.openspec-mdx-editor [class*="_toolbarModeSwitch"] [class*="_toolbarToggleItem"][data-state="on"] {
+  background-color: var(--vscode-button-background, #0e639c) !important;
+  color: var(--vscode-button-foreground, #ffffff) !important;
+  font-weight: 600 !important;
+}
+
+/* ==========================================================================
+   Markdown Document Typography (High-Contrast, Clean & Readable)
+   ========================================================================== */
+
+.openspec-mdx-editor div[contenteditable="true"],
+.openspec-editor-content {
+  color: var(--vscode-editor-foreground, #d4d4d4) !important;
+  background-color: var(--vscode-editor-background, #1e1e1e) !important;
+  font-family: var(--vscode-editor-font-family, var(--vscode-font-family)) !important;
+  font-size: 14px !important;
+  line-height: 1.7 !important;
+  padding: 1.5rem !important;
+  outline: none !important;
+  caret-color: var(--vscode-editorCursor-foreground, #aeafad) !important;
+  min-height: 600px !important;
+}
+
+/* Headings */
+.openspec-mdx-editor div[contenteditable="true"] h1,
+.openspec-editor-content h1 {
+  color: var(--vscode-editor-foreground, #ffffff) !important;
+  font-size: 1.9rem !important;
+  font-weight: 700 !important;
+  margin-top: 1.8rem !important;
+  margin-bottom: 0.8rem !important;
+  padding-bottom: 0.4rem !important;
+  border-bottom: 1px solid var(--vscode-widget-border, rgba(255, 255, 255, 0.15)) !important;
+  letter-spacing: -0.02em !important;
+}
+
+.openspec-mdx-editor div[contenteditable="true"] h2,
+.openspec-editor-content h2 {
+  color: var(--vscode-editor-foreground, #ffffff) !important;
+  font-size: 1.5rem !important;
+  font-weight: 600 !important;
+  margin-top: 1.5rem !important;
+  margin-bottom: 0.7rem !important;
+  padding-bottom: 0.3rem !important;
+  border-bottom: 1px solid var(--vscode-widget-border, rgba(255, 255, 255, 0.1)) !important;
+}
+
+.openspec-mdx-editor div[contenteditable="true"] h3,
+.openspec-editor-content h3 {
+  color: var(--vscode-symbolIcon-colorForeground, #569cd6) !important;
+  font-size: 1.25rem !important;
+  font-weight: 600 !important;
+  margin-top: 1.3rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.openspec-mdx-editor div[contenteditable="true"] h4,
+.openspec-editor-content h4 {
+  color: var(--vscode-editor-foreground, #e5e5e5) !important;
+  font-size: 1.08rem !important;
+  font-weight: 600 !important;
+  margin-top: 1.1rem !important;
+  margin-bottom: 0.4rem !important;
+}
+
+/* Paragraphs & Text */
+.openspec-mdx-editor div[contenteditable="true"] p,
+.openspec-editor-content p {
+  color: var(--vscode-editor-foreground, #d4d4d4) !important;
+  margin-top: 0.65rem !important;
+  margin-bottom: 0.65rem !important;
+}
+
+.openspec-mdx-editor div[contenteditable="true"] strong,
+.openspec-mdx-editor div[contenteditable="true"] b,
+.openspec-editor-content strong,
+.openspec-editor-content b {
+  color: var(--vscode-editor-foreground, #ffffff) !important;
+  font-weight: 600 !important;
+}
+
+.openspec-mdx-editor div[contenteditable="true"] em,
+.openspec-mdx-editor div[contenteditable="true"] i,
+.openspec-editor-content em,
+.openspec-editor-content i {
+  color: var(--vscode-editor-foreground, #d4d4d4) !important;
+  font-style: italic !important;
+}
+
+/* Lists */
+.openspec-mdx-editor div[contenteditable="true"] ul,
+.openspec-editor-content ul {
+  list-style-type: disc !important;
+  padding-inline-start: 1.75rem !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.openspec-mdx-editor div[contenteditable="true"] ol,
+.openspec-editor-content ol {
+  list-style-type: decimal !important;
+  padding-inline-start: 1.75rem !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.openspec-mdx-editor div[contenteditable="true"] li,
+.openspec-editor-content li {
+  color: var(--vscode-editor-foreground, #d4d4d4) !important;
+  margin-top: 0.25rem !important;
+  margin-bottom: 0.25rem !important;
+}
+
+/* Inline Code & Code Blocks */
+.openspec-mdx-editor div[contenteditable="true"] code,
+.openspec-editor-content code {
+  font-family: var(--vscode-editor-font-family, monospace) !important;
+  font-size: 0.9em !important;
+  background-color: var(--vscode-textCodeBlock-background, rgba(127, 127, 127, 0.18)) !important;
+  color: var(--vscode-textPreformat-foreground, #ce9178) !important;
+  padding: 0.15em 0.45em !important;
+  border-radius: 4px !important;
+  border: 1px solid var(--vscode-widget-border, rgba(255, 255, 255, 0.1)) !important;
+}
+
+/* Blockquotes */
+.openspec-mdx-editor div[contenteditable="true"] blockquote,
+.openspec-editor-content blockquote {
+  border-left: 4px solid var(--vscode-textBlockQuote-border, #007acc) !important;
+  background-color: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.08)) !important;
+  padding: 0.5rem 1rem !important;
+  margin: 0.8rem 0 !important;
+  color: var(--vscode-editor-foreground, #cccccc) !important;
+  border-radius: 0 4px 4px 0 !important;
+}
+
+/* Tables */
+.openspec-mdx-editor div[contenteditable="true"] table,
+.openspec-editor-content table {
+  border-collapse: collapse !important;
+  width: 100% !important;
+  margin: 1rem 0 !important;
+}
+
+.openspec-mdx-editor div[contenteditable="true"] th,
+.openspec-mdx-editor div[contenteditable="true"] td,
+.openspec-editor-content th,
+.openspec-editor-content td {
+  border: 1px solid var(--vscode-widget-border, #444) !important;
+  padding: 0.45rem 0.85rem !important;
+}
+
+.openspec-mdx-editor div[contenteditable="true"] th,
+.openspec-editor-content th {
+  background-color: var(--vscode-sideBar-background, #252526) !important;
+  font-weight: 600 !important;
+  color: var(--vscode-editor-foreground, #ffffff) !important;
+}
+
+/* Horizontal Rule */
+.openspec-mdx-editor div[contenteditable="true"] hr,
+.openspec-editor-content hr {
+  border: none !important;
+  border-top: 1px solid var(--vscode-widget-border, rgba(255, 255, 255, 0.18)) !important;
+  margin: 1.6rem 0 !important;
+}
+
+/* CodeMirror (Source View) */
+.openspec-mdx-editor .cm-editor {
+  background-color: var(--vscode-editor-background, #1e1e1e) !important;
+  color: var(--vscode-editor-foreground, #d4d4d4) !important;
+}
+
+.openspec-mdx-editor .cm-gutters {
+  background-color: var(--vscode-editorGutter-background, var(--vscode-editor-background, #1e1e1e)) !important;
+  color: var(--vscode-editorLineNumber-foreground, #858585) !important;
+  border-right: 1px solid var(--vscode-widget-border, #333) !important;
+}
+
+

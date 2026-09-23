@@ -204,8 +204,10 @@ export class StudioDashboardPanel {
 
       case 'OPEN_FILE': {
         try {
-          const doc = await vscode.workspace.openTextDocument(message.filePath);
-          await vscode.window.showTextDocument(doc, { preview: false, viewColumn: vscode.ViewColumn.Beside });
+          await vscode.commands.executeCommand('vscode.open', vscode.Uri.file(message.filePath), {
+            preview: false,
+            viewColumn: vscode.ViewColumn.Beside
+          });
         } catch (err: any) {
           vscode.window.showErrorMessage(`Could not open file: ${err.message}`);
         }

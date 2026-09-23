@@ -20,7 +20,8 @@
   "activationEvents": [
     "onStartupFinished",
     "onCommand:openspec-studio.openDashboard",
-    "onView:openspec-studio.specsTree"
+    "onView:openspec-studio.specsTree",
+    "onCustomEditor:openspec.markdownEditor"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -36,9 +37,50 @@
         "title": "Refresh OpenSpec State",
         "category": "OpenSpec",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "openspec-studio.openInCustomEditor",
+        "title": "Open in OpenSpec Markdown Editor",
+        "category": "OpenSpec",
+        "icon": "$(edit)"
+      }
+    ],
+    "customEditors": [
+      {
+        "viewType": "openspec.markdownEditor",
+        "displayName": "OpenSpec Markdown Editor",
+        "selector": [
+          {
+            "filenamePattern": "**/openspec/**/*.md"
+          },
+          {
+            "filenamePattern": "**/openspec/*.md"
+          },
+          {
+            "filenamePattern": "openspec/**/*.md"
+          },
+          {
+            "filenamePattern": "openspec/*.md"
+          }
+        ],
+        "priority": "default"
       }
     ],
     "menus": {
+      "editor/title": [
+        {
+          "command": "openspec-studio.openInCustomEditor",
+          "when": "resourceExtname == .md",
+          "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "openspec-studio.openInCustomEditor",
+          "when": "resourceExtname == .md",
+          "group": "navigation"
+        }
+      ],
       "view/title": [
         {
           "command": "openspec-studio.refresh",
@@ -129,6 +171,7 @@
   "dependencies": {
     "@mdi/js": "^7.4.47",
     "@mdi/react": "^1.6.1",
+    "@mdxeditor/editor": "^4.2.5",
     "clsx": "^2.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
