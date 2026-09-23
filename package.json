@@ -2,7 +2,7 @@
   "name": "openspec-studio",
   "displayName": "OpenSpec Studio",
   "description": "Interactive dashboard and multi-AI workflow studio for OpenSpec in VS Code",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "openspec",
   "license": "MIT",
   "repository": {
