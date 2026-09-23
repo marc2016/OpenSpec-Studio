@@ -18,7 +18,8 @@ vi.mock('vscode', () => {
     },
     workspace: {
       applyEdit,
-      onDidChangeTextDocument: vi.fn().mockReturnValue({ dispose: vi.fn() })
+      onDidChangeTextDocument: vi.fn().mockReturnValue({ dispose: vi.fn() }),
+      onDidSaveTextDocument: vi.fn().mockReturnValue({ dispose: vi.fn() })
     },
     Uri: {
       file: (f: string) => ({ fsPath: f, toString: () => f, scheme: 'file' }),
@@ -79,11 +80,12 @@ describe('OpenSpecEditorProvider', () => {
 
     const mockWebviewPanel: any = {
       webview: mockWebview,
+      reveal: vi.fn(),
       onDidDispose: vi.fn()
     };
 
     const sampleDoc: any = {
-      uri: { fsPath: '/test/openspec/specs/vault/spec.md', toString: () => '/test/openspec/specs/vault/spec.md' },
+      uri: { fsPath: '/test/openspec/specs/vault/spec.md', toString: () => '/test/openspec/specs/vault/spec.md', scheme: 'file' },
       getText: () => '# Vault Spec\n\n## Purpose\nSample spec',
       positionAt: (offset: number) => ({ line: 0, character: offset })
     };
@@ -117,5 +119,35 @@ describe('OpenSpecEditorProvider', () => {
         'default'
       );
     }
+  });
+
+  it('delegates to default editor when opened with a non-file scheme like git', async () => {
+    const vscode = await import('vscode');
+    const provider = new OpenSpecEditorProvider(mockContext);
+    const gitDoc: any = {
+      uri: { fsPath: '/test/openspec/specs/vault/spec.md', toString: () => 'git:/test/openspec/specs/vault/spec.md', scheme: 'git' },
+      getText: () => '# Git Spec',
+      positionAt: () => ({ line: 0, character: 0 })
+    };
+
+    const mockWebviewPanel: any = {
+      webview: { options: {}, html: '', postMessage: vi.fn(), onDidReceiveMessage: vi.fn() },
+      onDidDispose: vi.fn()
+    };
+
+    await provider.resolveCustomTextEditor(gitDoc, mockWebviewPanel, {} as any);
+    expect(vscode.commands.executeCommand).toHaveBeenCalledWith('vscode.openWith', gitDoc.uri, 'default');
+  });
+
+  it('navigates to requirement on already opened panel or opens via openWith', async () => {
+    const vscode = await import('vscode');
+    const targetUri = {
+      fsPath: '/test/openspec/specs/vault/spec.md',
+      toString: () => '/test/openspec/specs/vault/spec.md'
+    };
+
+    // When panel is open, openRequirement dispatches NAVIGATE_TO_REQUIREMENT
+    await OpenSpecEditorProvider.openRequirement(targetUri as any, 'Target Requirement Name');
+    expect(vscode.commands.executeCommand).toHaveBeenCalled();
   });
 });

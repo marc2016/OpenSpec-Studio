@@ -5,6 +5,7 @@ import { WorkspaceDetector } from './WorkspaceDetector';
 import { CliAdapter } from './CliAdapter';
 import { WorkflowOrchestrator } from './WorkflowOrchestrator';
 import { OpenSpecState, FromWebviewMessage, ToWebviewMessage, AiTarget, CliMode } from '../shared/types';
+import { OpenSpecEditorProvider } from '../customEditor/OpenSpecEditorProvider';
 
 export class StudioDashboardPanel {
   public static currentPanel: StudioDashboardPanel | undefined;
@@ -204,10 +205,15 @@ export class StudioDashboardPanel {
 
       case 'OPEN_FILE': {
         try {
-          await vscode.commands.executeCommand('vscode.open', vscode.Uri.file(message.filePath), {
-            preview: false,
-            viewColumn: vscode.ViewColumn.Beside
-          });
+          const targetUri = vscode.Uri.file(message.filePath);
+          if (message.filePath.endsWith('.md')) {
+            await vscode.commands.executeCommand('vscode.openWith', targetUri, OpenSpecEditorProvider.viewType);
+          } else {
+            await vscode.commands.executeCommand('vscode.open', targetUri, {
+              preview: false,
+              viewColumn: vscode.ViewColumn.Beside
+            });
+          }
         } catch (err: any) {
           vscode.window.showErrorMessage(`Could not open file: ${err.message}`);
         }

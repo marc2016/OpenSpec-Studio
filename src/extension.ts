@@ -84,6 +84,22 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
+  const openRequirementCmd = vscode.commands.registerCommand(
+    'openspec-studio.openRequirement',
+    async (target: string | vscode.Uri, requirementName?: string) => {
+      try {
+        const uri = typeof target === 'string' ? vscode.Uri.file(target) : target;
+        if (requirementName) {
+          await OpenSpecEditorProvider.openRequirement(uri, requirementName);
+        } else {
+          await vscode.commands.executeCommand('vscode.openWith', uri, OpenSpecEditorProvider.viewType);
+        }
+      } catch (err) {
+        console.error('Failed to open requirement in custom editor:', err);
+      }
+    }
+  );
+
   // 5. Status Bar Item
   const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
   statusBarItem.command = 'openspec-studio.openDashboard';
@@ -96,6 +112,7 @@ export function activate(context: vscode.ExtensionContext) {
     refreshCmd,
     refreshTreeCmd,
     openFileRangeCmd,
+    openRequirementCmd,
     customEditorRegistration,
     openInCustomEditorCmd,
     statusBarItem,

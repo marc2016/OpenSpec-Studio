@@ -390,4 +390,29 @@ body {
   border-right: 1px solid var(--vscode-widget-border, #333) !important;
 }
 
+/* Requirement Navigation Selection Highlight */
+@keyframes openspec-highlight-pulse {
+  0% {
+    background-color: var(--vscode-editor-selectionHighlightBackground, rgba(0, 122, 204, 0.45)) !important;
+    box-shadow: 0 0 0 4px var(--vscode-focusBorder, #007acc) !important;
+  }
+  60% {
+    background-color: var(--vscode-editor-selectionHighlightBackground, rgba(0, 122, 204, 0.3)) !important;
+    box-shadow: 0 0 0 2px var(--vscode-focusBorder, #007acc) !important;
+  }
+  100% {
+    background-color: transparent !important;
+    box-shadow: none !important;
+  }
+}
+
+.openspec-requirement-highlight {
+  animation: openspec-highlight-pulse 3s ease-out forwards !important;
+  border-radius: 4px !important;
+  padding-left: 6px !important;
+  padding-right: 6px !important;
+  transition: all 0.3s ease !important;
+}
+
+
 

@@ -63,7 +63,7 @@
             "filenamePattern": "openspec/*.md"
           }
         ],
-        "priority": "default"
+        "priority": "option"
       }
     ],
     "menus": {

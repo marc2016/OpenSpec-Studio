@@ -33,6 +33,46 @@ import { getVsCodeApi } from '../hooks/useVscodeApi';
 
 const initialData = typeof window !== 'undefined' ? (window as any).OPENSPEC_DATA : undefined;
 
+function navigateToRequirement(requirementName: string) {
+  if (!requirementName) return;
+
+  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const targetNorm = normalize(requirementName);
+
+  const attemptScroll = (retryCount: number = 0) => {
+    const editorEl = document.querySelector('.openspec-mdx-editor') || document.body;
+    const headings = editorEl.querySelectorAll('h1, h2, h3, h4, h5, h6');
+
+    let matchedElement: HTMLElement | null = null;
+    for (const h of Array.from(headings)) {
+      const text = h.textContent || '';
+      if (normalize(text).includes(targetNorm)) {
+        matchedElement = h as HTMLElement;
+        break;
+      }
+    }
+
+    if (matchedElement) {
+      matchedElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+      // Remove existing highlights
+      document.querySelectorAll('.openspec-requirement-highlight').forEach((el) => {
+        el.classList.remove('openspec-requirement-highlight');
+      });
+
+      // Add temporary highlight animation class
+      matchedElement.classList.add('openspec-requirement-highlight');
+      setTimeout(() => {
+        matchedElement?.classList.remove('openspec-requirement-highlight');
+      }, 3000);
+    } else if (retryCount < 5) {
+      setTimeout(() => attemptScroll(retryCount + 1), 120);
+    }
+  };
+
+  attemptScroll();
+}
+
 export function MarkdownEditorApp() {
   const [content, setContent] = useState<string>(() => initialData?.content ?? '');
   const [filePath, setFilePath] = useState<string>(() => initialData?.filePath ?? '');
@@ -48,9 +88,17 @@ export function MarkdownEditorApp() {
 
   const editorRef = useRef<MDXEditorMethods | null>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isUserEditRef = useRef<boolean>(false);
+  const lastSyncedContentRef = useRef<string>(initialData?.content ?? '');
+  const initialContentRef = useRef<string>(initialData?.content ?? '');
   const vscode = getVsCodeApi();
 
   useEffect(() => {
+    // If opened with initial target requirement, navigate after initial render
+    if (initialData?.targetRequirement) {
+      setTimeout(() => navigateToRequirement(initialData.targetRequirement), 180);
+    }
+
     const handleMessage = (event: MessageEvent) => {
       const msg = event.data;
       if (!msg) return;
@@ -58,20 +106,34 @@ export function MarkdownEditorApp() {
       if (msg.type === 'INIT_EDITOR') {
         const text = msg.content ?? '';
         setContent(text);
+        initialContentRef.current = text;
+        lastSyncedContentRef.current = text;
+        isUserEditRef.current = false;
         if (msg.filePath) {
           setFilePath(msg.filePath);
           const parts = msg.filePath.split(/[\\/]/);
           setFileName(parts[parts.length - 1] || 'Document.md');
         }
         setIsReady(true);
-        setIsDirty(false);
+        setIsDirty(Boolean(msg.isDirty));
+        if (msg.targetRequirement) {
+          setTimeout(() => navigateToRequirement(msg.targetRequirement), 180);
+        }
+      } else if (msg.type === 'NAVIGATE_TO_REQUIREMENT') {
+        if (msg.requirementName) {
+          navigateToRequirement(msg.requirementName);
+        }
       } else if (msg.type === 'DOCUMENT_UPDATE') {
         const newText = msg.content ?? '';
         setContent(newText);
+        lastSyncedContentRef.current = newText;
+        isUserEditRef.current = false;
         if (editorRef.current) {
           editorRef.current.setMarkdown(newText);
         }
         setIsDirty(false);
+      } else if (msg.type === 'DIRTY_STATE_CHANGE') {
+        setIsDirty(Boolean(msg.isDirty));
       }
     };
 
@@ -88,7 +150,39 @@ export function MarkdownEditorApp() {
     };
   }, []);
 
+  const markUserInteraction = useCallback(() => {
+    isUserEditRef.current = true;
+  }, []);
+
+  const handleContainerPointerDown = useCallback((e: React.PointerEvent) => {
+    const target = e.target as HTMLElement | null;
+    if (!target) return;
+
+    if (
+      target.closest('button') ||
+      target.closest('.mdxeditor-toolbar') ||
+      target.closest('input') ||
+      target.closest('select') ||
+      target.closest('[role="button"]') ||
+      target.closest('[role="menuitem"]')
+    ) {
+      isUserEditRef.current = true;
+    }
+  }, []);
+
   const handleContentChange = useCallback((newMarkdown: string) => {
+    // If this change was triggered without user interaction (e.g. initial AST normalization by MDXEditor on mount),
+    // update our synced baseline but do NOT mark dirty or send DOCUMENT_EDIT to VS Code.
+    if (!isUserEditRef.current) {
+      lastSyncedContentRef.current = newMarkdown;
+      return;
+    }
+
+    if (newMarkdown === lastSyncedContentRef.current) {
+      return;
+    }
+
+    lastSyncedContentRef.current = newMarkdown;
     setContent(newMarkdown);
     setIsDirty(true);
 
@@ -101,7 +195,6 @@ export function MarkdownEditorApp() {
         command: 'DOCUMENT_EDIT',
         text: newMarkdown
       });
-      setIsDirty(false);
     }, 250);
   }, [vscode]);
 
@@ -121,7 +214,16 @@ export function MarkdownEditorApp() {
   }
 
   return (
-    <div className="openspec-editor-container flex flex-col min-h-screen bg-vscode-editor-bg text-vscode-fg">
+    <div
+      className="openspec-editor-container flex flex-col min-h-screen bg-vscode-editor-bg text-vscode-fg"
+      onKeyDown={markUserInteraction}
+      onInput={markUserInteraction}
+      onPaste={markUserInteraction}
+      onCut={markUserInteraction}
+      onDrop={markUserInteraction}
+      onCompositionStart={markUserInteraction}
+      onPointerDown={handleContainerPointerDown}
+    >
       {/* Top Application Bar */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-vscode-border bg-vscode-card text-xs">
         <div className="flex items-center gap-2">
@@ -155,6 +257,18 @@ export function MarkdownEditorApp() {
           ref={editorRef}
           markdown={content}
           onChange={handleContentChange}
+          toMarkdownOptions={{
+            bullet: '-',
+            join: [
+              (left: any, right: any) => {
+                // Prevent automatic blank lines between headings and subsequent content
+                if (left.type === 'heading' && right.type !== 'heading') {
+                  return 0;
+                }
+                return undefined;
+              }
+            ]
+          }}
           className="openspec-mdx-editor"
           contentEditableClassName="openspec-editor-content focus:outline-none"
           plugins={[
@@ -168,11 +282,11 @@ export function MarkdownEditorApp() {
             linkDialogPlugin(),
             diffSourcePlugin({
               viewMode: 'rich-text',
-              diffMarkdown: content
+              diffMarkdown: initialContentRef.current || content
             }),
             toolbarPlugin({
               toolbarContents: () => (
-                <DiffSourceToggleWrapper options={['rich-text', 'source']}>
+                <DiffSourceToggleWrapper options={['rich-text', 'diff', 'source']}>
                   <UndoRedo />
                   <BlockTypeSelect />
                   <BoldItalicUnderlineToggles />

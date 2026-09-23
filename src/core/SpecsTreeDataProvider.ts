@@ -45,17 +45,24 @@ export class SpecsTreeItem extends vscode.TreeItem {
       case 'spec-capability':
         this.iconPath = new vscode.ThemeIcon('book');
         this.tooltip = `Durable Spec: ${this.label}`;
+        if (this.filePath) {
+          this.command = {
+            command: 'openspec-studio.openInCustomEditor',
+            title: 'Open in OpenSpec Markdown Editor',
+            arguments: [vscode.Uri.file(this.filePath)]
+          };
+        }
         break;
 
       case 'spec-requirement': {
         this.iconPath = new vscode.ThemeIcon('check');
         this.tooltip = `Requirement: ${this.label}`;
         const req = this.contextData?.requirement as SpecRequirement | undefined;
-        if (this.filePath && req && typeof req.startLine === 'number') {
+        if (this.filePath && req) {
           this.command = {
-            command: 'openspec-studio.openFileRange',
-            title: 'Open Requirement',
-            arguments: [this.filePath, req.startLine, req.endLine ?? req.startLine]
+            command: 'openspec-studio.openRequirement',
+            title: 'Open Requirement in Editor',
+            arguments: [this.filePath, req.name, req.startLine, req.endLine ?? req.startLine]
           };
         }
         break;
@@ -231,6 +238,11 @@ export class SpecsTreeDataProvider implements vscode.TreeDataProvider<SpecsTreeI
       vscode.TreeItemCollapsibleState.None,
       capability.path
     );
+    specFileItem.command = {
+      command: 'openspec-studio.openInCustomEditor',
+      title: 'Open in OpenSpec Markdown Editor',
+      arguments: [vscode.Uri.file(capability.path)]
+    };
     items.push(specFileItem);
 
     // Sub-items for requirements
@@ -316,6 +328,13 @@ export class SpecsTreeDataProvider implements vscode.TreeDataProvider<SpecsTreeI
           vscode.TreeItemCollapsibleState.None,
           artPath
         );
+        if (basename === 'spec.md') {
+          item.command = {
+            command: 'openspec-studio.openInCustomEditor',
+            title: 'Open in OpenSpec Markdown Editor',
+            arguments: [vscode.Uri.file(artPath)]
+          };
+        }
         if (basename === 'tasks.md' && change.totalTasks > 0) {
           item.description = `${change.completedTasks}/${change.totalTasks}`;
         }

@@ -105,7 +105,24 @@ describe('SpecsTreeDataProvider', () => {
     expect(fireSpy).toHaveBeenCalled();
   });
 
-  it('configures openFileRange command with line numbers for requirement items', async () => {
+  it('configures openInCustomEditor command for top-level spec-capability and spec.md items', async () => {
+    const rootItems = await treeProvider.getChildren();
+    const specsCategory = rootItems.find(item => item.label === 'Specifications')!;
+    const specItems = await treeProvider.getChildren(specsCategory);
+    const specItem = specItems.find(i => i.label === 'specs-tree-view')!;
+    expect(specItem).toBeDefined();
+    expect(specItem.command).toBeDefined();
+    expect(specItem.command.command).toBe('openspec-studio.openInCustomEditor');
+    expect(specItem.command.arguments[0].fsPath).toContain('spec.md');
+
+    const specChildren = await treeProvider.getChildren(specItem);
+    const specMdFileItem = specChildren.find(c => c.label === 'spec.md')!;
+    expect(specMdFileItem).toBeDefined();
+    expect(specMdFileItem.command).toBeDefined();
+    expect(specMdFileItem.command.command).toBe('openspec-studio.openInCustomEditor');
+  });
+
+  it('configures openRequirement command for requirement items', async () => {
     const rootItems = await treeProvider.getChildren();
     const specsCategory = rootItems.find(item => item.label === 'Specifications')!;
     const specItems = await treeProvider.getChildren(specsCategory);
@@ -118,10 +135,11 @@ describe('SpecsTreeDataProvider', () => {
     const reqItem = specChildren.find(c => c.itemType === 'spec-requirement')!;
     expect(reqItem).toBeDefined();
     expect(reqItem.command).toBeDefined();
-    expect(reqItem.command.command).toBe('openspec-studio.openFileRange');
+    expect(reqItem.command.command).toBe('openspec-studio.openRequirement');
     expect(reqItem.command.arguments[0]).toContain('spec.md');
-    expect(typeof reqItem.command.arguments[1]).toBe('number');
+    expect(typeof reqItem.command.arguments[1]).toBe('string');
+    expect(reqItem.command.arguments[1].length).toBeGreaterThan(0);
     expect(typeof reqItem.command.arguments[2]).toBe('number');
-    expect(reqItem.command.arguments[2]).toBeGreaterThanOrEqual(reqItem.command.arguments[1]);
+    expect(reqItem.command.arguments[3]).toBeGreaterThanOrEqual(reqItem.command.arguments[2]);
   });
 });

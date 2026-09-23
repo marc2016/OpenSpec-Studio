@@ -4,6 +4,8 @@ import * as fs from 'fs';
 
 export class OpenSpecEditorProvider implements vscode.CustomTextEditorProvider {
   public static readonly viewType = 'openspec.markdownEditor';
+  private static activePanels = new Map<string, vscode.WebviewPanel>();
+  private static pendingNavigations = new Map<string, string>();
 
   constructor(private readonly context: vscode.ExtensionContext) {}
 
@@ -21,12 +23,51 @@ export class OpenSpecEditorProvider implements vscode.CustomTextEditorProvider {
     );
   }
 
+  public static async openRequirement(uri: vscode.Uri, requirementName: string): Promise<void> {
+    const key = uri.toString();
+    const panel = OpenSpecEditorProvider.activePanels.get(key);
+    if (panel) {
+      if (typeof panel.reveal === 'function') {
+        panel.reveal();
+      }
+      panel.webview.postMessage({
+        type: 'NAVIGATE_TO_REQUIREMENT',
+        requirementName
+      });
+      return;
+    }
+
+    OpenSpecEditorProvider.pendingNavigations.set(key, requirementName);
+    await vscode.commands.executeCommand('vscode.openWith', uri, OpenSpecEditorProvider.viewType);
+  }
+
   public async resolveCustomTextEditor(
     document: vscode.TextDocument,
     webviewPanel: vscode.WebviewPanel,
     _token: vscode.CancellationToken
   ): Promise<void> {
+    // If opened as part of a diff editor or non-file scheme (e.g. git diff), delegate to default text editor
+    const isDiffEditor = vscode.window.tabGroups?.all?.some((group) =>
+      group.tabs.some((tab) => {
+        const input: any = tab.input;
+        if (!input) return false;
+        if (input.original && input.modified) {
+          const docUriStr = document.uri.toString();
+          return input.original.toString() === docUriStr || input.modified.toString() === docUriStr;
+        }
+        return false;
+      })
+    );
+
+    if (isDiffEditor || (document.uri?.scheme && document.uri.scheme !== 'file')) {
+      await vscode.commands.executeCommand('vscode.openWith', document.uri, 'default');
+      return;
+    }
+
     const webview = webviewPanel.webview;
+    const uriKey = document.uri.toString();
+    OpenSpecEditorProvider.activePanels.set(uriKey, webviewPanel);
+
     webview.options = {
       enableScripts: true,
       localResourceRoots: [
@@ -34,39 +75,74 @@ export class OpenSpecEditorProvider implements vscode.CustomTextEditorProvider {
       ]
     };
 
-    webview.html = this.getHtmlForWebview(webview, document);
+    const pendingTarget = OpenSpecEditorProvider.pendingNavigations.get(uriKey);
+    OpenSpecEditorProvider.pendingNavigations.delete(uriKey);
+
+    webview.html = this.getHtmlForWebview(webview, document, pendingTarget);
+
+    let lastWebviewText = document.getText();
 
     const postInit = () => {
+      lastWebviewText = document.getText();
       webview.postMessage({
         type: 'INIT_EDITOR',
         filePath: document.uri.fsPath,
-        content: document.getText()
+        content: document.getText(),
+        isDirty: document.isDirty,
+        targetRequirement: pendingTarget
       });
     };
 
     // Send initial content
     postInit();
 
-    // Synchronize external changes (disk or other editor tab)
+    // Synchronize external changes (disk or other editor tab) and dirty state
     const changeDocumentSubscription = vscode.workspace.onDidChangeTextDocument((e) => {
-      if (e.document.uri.toString() === document.uri.toString() && e.contentChanges.length > 0) {
+      if (e.document.uri.toString() === document.uri.toString()) {
         webview.postMessage({
-          type: 'DOCUMENT_UPDATE',
-          content: document.getText()
+          type: 'DIRTY_STATE_CHANGE',
+          isDirty: e.document.isDirty
         });
+
+        // Only send DOCUMENT_UPDATE if content changed externally, not from our webview edit
+        if (e.contentChanges.length > 0 && e.document.getText() !== lastWebviewText) {
+          lastWebviewText = e.document.getText();
+          webview.postMessage({
+            type: 'DOCUMENT_UPDATE',
+            content: e.document.getText()
+          });
+        }
       }
     });
+
+    const saveDocumentSubscription = vscode.workspace.onDidSaveTextDocument
+      ? vscode.workspace.onDidSaveTextDocument((savedDoc) => {
+          if (savedDoc.uri.toString() === document.uri.toString()) {
+            webview.postMessage({
+              type: 'DIRTY_STATE_CHANGE',
+              isDirty: false
+            });
+          }
+        })
+      : { dispose: () => {} };
 
     // Handle messages from the webview
     const messageSubscription = webview.onDidReceiveMessage(async (message) => {
       switch (message.command) {
         case 'READY':
           postInit();
+          if (pendingTarget) {
+            webview.postMessage({
+              type: 'NAVIGATE_TO_REQUIREMENT',
+              requirementName: pendingTarget
+            });
+          }
           break;
 
         case 'DOCUMENT_EDIT': {
           const newText = message.text;
           if (typeof newText === 'string' && newText !== document.getText()) {
+            lastWebviewText = newText;
             await this.updateTextDocument(document, newText);
           }
           break;
@@ -84,7 +160,9 @@ export class OpenSpecEditorProvider implements vscode.CustomTextEditorProvider {
     });
 
     webviewPanel.onDidDispose(() => {
+      OpenSpecEditorProvider.activePanels.delete(uriKey);
       changeDocumentSubscription.dispose();
+      saveDocumentSubscription.dispose();
       messageSubscription.dispose();
     });
   }
@@ -99,7 +177,7 @@ export class OpenSpecEditorProvider implements vscode.CustomTextEditorProvider {
     return vscode.workspace.applyEdit(edit);
   }
 
-  private getHtmlForWebview(webview: vscode.Webview, document: vscode.TextDocument): string {
+  private getHtmlForWebview(webview: vscode.Webview, document: vscode.TextDocument, targetRequirement?: string): string {
     const distWebview = vscode.Uri.joinPath(this.context.extensionUri, 'dist', 'webview');
     const indexPath = path.join(distWebview.fsPath, 'index.html');
 
@@ -119,7 +197,8 @@ export class OpenSpecEditorProvider implements vscode.CustomTextEditorProvider {
     const initialData = JSON.stringify({
       mode: 'editor',
       filePath: document.uri.fsPath,
-      content: document.getText()
+      content: document.getText(),
+      targetRequirement: targetRequirement || undefined
     }).replace(/</g, '\\u003c');
 
     const modeScript = `<script>window.OPENSPEC_MODE = "editor"; window.OPENSPEC_DATA = ${initialData};</script>`;
