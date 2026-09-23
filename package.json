@@ -4,6 +4,11 @@
   "description": "Interactive dashboard and multi-AI workflow studio for OpenSpec in VS Code",
   "version": "0.1.0",
   "publisher": "openspec",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/marc2016/OpenSpec-Studio"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -84,6 +89,7 @@
     "compile": "tsc -p ./tsconfig.json --noEmit && npm run compile:ext",
     "build:webview": "vite build",
     "build": "npm run compile && npm run build:webview",
+    "package": "vsce package --no-git-tag-version",
     "test": "vitest run --config vitest.config.ts"
   },
   "devDependencies": {
@@ -92,6 +98,7 @@
     "@types/react-dom": "^18.2.18",
     "@types/vscode": "^1.85.0",
     "@vitejs/plugin-react": "^4.2.1",
+    "@vscode/vsce": "^4.0.0",
     "autoprefixer": "^10.4.17",
     "esbuild": "^0.20.0",
     "postcss": "^8.4.33",
