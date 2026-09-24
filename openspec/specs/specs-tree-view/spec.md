@@ -7,11 +7,11 @@ Provides tree navigation for OpenSpec specifications and enables targeted sectio
 ## Requirements
 
 ### Requirement: Requirement tree items select section in editor
-When a requirement tree item in the OpenSpec Explorer is clicked, the system SHALL open the containing specification markdown document and select the entire line range spanning from the requirement heading to the beginning of the next requirement or section.
+When a requirement tree item in the OpenSpec Explorer is clicked, the system SHALL open the containing specification document in the OpenSpec Markdown Editor and navigate to the selected requirement.
 
 #### Scenario: User clicks requirement node in tree
 - **WHEN** user clicks on a requirement tree item in the OpenSpec Explorer
-- **THEN** the editor opens the corresponding spec markdown file, sets the editor selection across all lines of that requirement section, and scrolls the selection into view
+- **THEN** the system opens or reveals the corresponding document in the OpenSpec Markdown Editor, scrolls the target requirement heading into view, and highlights the requirement section
 
 ### Requirement: Requirement line range calculation
 The system SHALL determine the starting line number and ending line number of each requirement in a spec markdown document during parsing.

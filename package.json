@@ -124,11 +124,13 @@
           "type": "string",
           "enum": [
             "copilot",
+            "cursor",
+            "antigravity",
             "terminal",
             "clipboard"
           ],
           "default": "copilot",
-          "description": "Target assistant for OpenSpec workflow actions"
+          "description": "Target assistant for OpenSpec workflow actions (copilot, cursor, antigravity, terminal, clipboard)"
         },
         "openspec.cliMode": {
           "type": "string",

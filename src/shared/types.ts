@@ -1,4 +1,4 @@
-export type AiTarget = 'copilot' | 'terminal' | 'clipboard';
+export type AiTarget = 'copilot' | 'cursor' | 'antigravity' | 'terminal' | 'clipboard';
 
 export type CliMode = 'auto' | 'local' | 'global' | 'npx';
 
@@ -28,6 +28,7 @@ export interface OpenSpecChange {
     exists: boolean;
     path?: string;
   }[];
+  lastModified?: number;
 }
 
 export interface SpecScenario {

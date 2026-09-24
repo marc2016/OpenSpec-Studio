@@ -43,9 +43,47 @@ describe('WorkflowOrchestrator', () => {
     );
   });
 
-  it('dispatches to clipboard fallback', async () => {
-    await orchestrator.dispatch({ action: 'explore', input: 'design' }, 'clipboard');
-    expect(vscode.env.clipboard.writeText).toHaveBeenCalledWith('/opsx-explore design');
-    expect(vscode.window.showInformationMessage).toHaveBeenCalled();
+  it('dispatches to cursor chat command', async () => {
+    (vscode.commands as any).getCommands = vi.fn().mockResolvedValue(['aichat.newchataction']);
+    await orchestrator.dispatch({ action: 'explore', input: 'offline' }, 'cursor');
+    expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
+      'aichat.newchataction',
+      expect.objectContaining({ query: '/opsx-explore offline' })
+    );
+  });
+
+  it('dispatches to antigravity chat command', async () => {
+    (vscode.commands as any).getCommands = vi.fn().mockResolvedValue(['antigravity.sendPromptToAgentPanel']);
+    await orchestrator.dispatch({ action: 'explore', input: 'offline' }, 'antigravity');
+    expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
+      'antigravity.sendPromptToAgentPanel',
+      '/opsx-explore offline'
+    );
+  });
+
+  it('auto-detects antigravity environment and routes copilot target to antigravity', async () => {
+    (vscode.env as any).appName = 'Antigravity IDE';
+    (vscode.commands as any).getCommands = vi.fn().mockResolvedValue(['antigravity.sendPromptToAgentPanel']);
+    await orchestrator.dispatch({ action: 'apply', changeName: 'my-change' }, 'copilot');
+    expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
+      'antigravity.sendPromptToAgentPanel',
+      '/opsx-apply my-change'
+    );
+    (vscode.env as any).appName = 'Visual Studio Code';
+  });
+
+  it('falls back to executeCommand without args if executing with args throws', async () => {
+    (vscode.commands as any).getCommands = vi.fn().mockResolvedValue(['antigravity.sendPromptToAgentPanel']);
+    (vscode.commands.executeCommand as any).mockImplementationOnce(() => {
+      throw new Error('Invalid query argument');
+    });
+    await orchestrator.dispatch({ action: 'explore', input: 'offline' }, 'antigravity');
+    expect(vscode.commands.executeCommand).toHaveBeenCalledWith('antigravity.sendPromptToAgentPanel');
+  });
+
+  it('dispatches custom prompt with fallback to clipboard if command fails', async () => {
+    (vscode.commands as any).getCommands = vi.fn().mockResolvedValue(['unsupported.command']);
+    await orchestrator.dispatchCustomPrompt('Referenz: `test.md`\n> sample');
+    expect(vscode.env.clipboard.writeText).toHaveBeenCalledWith('Referenz: `test.md`\n> sample');
   });
 });

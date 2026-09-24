@@ -24,7 +24,8 @@ export default function App() {
     initProject,
     installCli,
     openFile,
-    openChangeFolder
+    openChangeFolder,
+    refreshState
   } = useOpenSpecStudio();
 
   const [activeTab, setActiveTab] = useState<'changes' | 'specs' | 'archived'>('changes');
@@ -45,8 +46,9 @@ export default function App() {
       <Header
         cliInfo={state.cliInfo}
         aiTarget={state.aiTarget}
+        loading={state.loading}
         onSetAiTarget={setAiTarget}
-        onRefresh={() => runWorkflow('sync')}
+        onRefresh={refreshState}
       />
 
       {/* Main Content */}
@@ -76,8 +78,10 @@ export default function App() {
             >
               <Icon path={mdiSourcePull} className="w-3.5 h-3.5" />
               Active Changes
-              <span className="ml-1 px-1.5 py-0.2 rounded-full bg-vscode-card text-[10px] border border-vscode-border">
-                {state.changes.length}
+              <span className={`ml-1 px-1.5 py-0.2 rounded-full bg-vscode-card text-[10px] border border-vscode-border min-w-[20px] text-center font-mono ${
+                state.loading && state.changes.length === 0 ? 'animate-pulse text-vscode-accent' : ''
+              }`}>
+                {state.loading && state.changes.length === 0 ? '···' : state.changes.length}
               </span>
             </button>
 
@@ -91,8 +95,10 @@ export default function App() {
             >
               <Icon path={mdiBookOpenPageVariantOutline} className="w-3.5 h-3.5" />
               Durable Specs
-              <span className="ml-1 px-1.5 py-0.2 rounded-full bg-vscode-card text-[10px] border border-vscode-border">
-                {state.specs.length}
+              <span className={`ml-1 px-1.5 py-0.2 rounded-full bg-vscode-card text-[10px] border border-vscode-border min-w-[20px] text-center font-mono ${
+                state.loading && state.specs.length === 0 ? 'animate-pulse text-vscode-accent' : ''
+              }`}>
+                {state.loading && state.specs.length === 0 ? '···' : state.specs.length}
               </span>
             </button>
 
@@ -106,8 +112,10 @@ export default function App() {
             >
               <Icon path={mdiArchiveOutline} className="w-3.5 h-3.5" />
               Archived History
-              <span className="ml-1 px-1.5 py-0.2 rounded-full bg-vscode-card text-[10px] border border-vscode-border">
-                {state.archived.length}
+              <span className={`ml-1 px-1.5 py-0.2 rounded-full bg-vscode-card text-[10px] border border-vscode-border min-w-[20px] text-center font-mono ${
+                state.loading && state.archived.length === 0 ? 'animate-pulse text-vscode-accent' : ''
+              }`}>
+                {state.loading && state.archived.length === 0 ? '···' : state.archived.length}
               </span>
             </button>
           </div>
@@ -117,6 +125,7 @@ export default function App() {
             {activeTab === 'changes' && (
               <ActiveChangesGrid
                 changes={state.changes}
+                loading={state.loading}
                 onRunWorkflow={runWorkflow}
                 onOpenFile={openFile}
                 onOpenFolder={openChangeFolder}
@@ -126,6 +135,7 @@ export default function App() {
             {activeTab === 'specs' && (
               <SpecsExplorer
                 specs={state.specs}
+                loading={state.loading}
                 onOpenFile={openFile}
               />
             )}
@@ -133,6 +143,7 @@ export default function App() {
             {activeTab === 'archived' && (
               <ArchivedHistory
                 archived={state.archived}
+                loading={state.loading}
                 onOpenFolder={openFile}
               />
             )}

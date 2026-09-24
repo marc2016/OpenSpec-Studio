@@ -15,6 +15,11 @@ export class WorkspaceDetector implements vscode.Disposable {
   private fileWatcher?: vscode.FileSystemWatcher;
   private readonly _onDidChangeState = new vscode.EventEmitter<void>();
   public readonly onDidChangeState = this._onDidChangeState.event;
+  private specsCache = new Map<string, { mtimeMs: number; capability: OpenSpecCapability }>();
+
+  public clearSpecsCache() {
+    this.specsCache.clear();
+  }
 
   constructor(
     private readonly workspaceRoot: string,
@@ -87,6 +92,26 @@ export class WorkspaceDetector implements vscode.Disposable {
         status = 'Ready';
       }
 
+      let lastModified: number | undefined;
+      try {
+        const stats = fs.statSync(changePath);
+        lastModified = stats.mtimeMs;
+        for (const art of artifacts) {
+          if (art.exists && art.path) {
+            try {
+              const artMtime = fs.statSync(art.path).mtimeMs;
+              if (artMtime > lastModified) {
+                lastModified = artMtime;
+              }
+            } catch {
+              // ignore individual artifact stat error
+            }
+          }
+        }
+      } catch {
+        // ignore change stat error
+      }
+
       changes.push({
         name: entry.name,
         path: changePath,
@@ -95,7 +120,8 @@ export class WorkspaceDetector implements vscode.Disposable {
         totalTasks,
         completedTasks,
         tasks,
-        artifacts
+        artifacts,
+        lastModified
       });
     }
 
@@ -152,9 +178,22 @@ export class WorkspaceDetector implements vscode.Disposable {
 
     const specFile = path.join(currentDir, 'spec.md');
     if (fs.existsSync(specFile)) {
-      const relPath = path.relative(baseSpecsDir, currentDir);
-      const specData = this.parseSpecFile(specFile, relPath);
-      results.push(specData);
+      try {
+        const stats = fs.statSync(specFile);
+        const cached = this.specsCache.get(specFile);
+        if (cached && cached.mtimeMs === stats.mtimeMs) {
+          results.push(cached.capability);
+        } else {
+          const relPath = path.relative(baseSpecsDir, currentDir);
+          const specData = this.parseSpecFile(specFile, relPath);
+          this.specsCache.set(specFile, { mtimeMs: stats.mtimeMs, capability: specData });
+          results.push(specData);
+        }
+      } catch {
+        const relPath = path.relative(baseSpecsDir, currentDir);
+        const specData = this.parseSpecFile(specFile, relPath);
+        results.push(specData);
+      }
     }
 
     for (const entry of entries) {

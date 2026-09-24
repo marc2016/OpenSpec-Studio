@@ -1,16 +1,24 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import { WorkflowOrchestrator } from '../core/WorkflowOrchestrator';
+import { AiTarget } from '../shared/types';
 
 export class OpenSpecEditorProvider implements vscode.CustomTextEditorProvider {
   public static readonly viewType = 'openspec.markdownEditor';
   private static activePanels = new Map<string, vscode.WebviewPanel>();
   private static pendingNavigations = new Map<string, string>();
 
-  constructor(private readonly context: vscode.ExtensionContext) {}
+  constructor(
+    private readonly context: vscode.ExtensionContext,
+    private readonly orchestrator?: WorkflowOrchestrator
+  ) {}
 
-  public static register(context: vscode.ExtensionContext): vscode.Disposable {
-    const provider = new OpenSpecEditorProvider(context);
+  public static register(
+    context: vscode.ExtensionContext,
+    orchestrator?: WorkflowOrchestrator
+  ): vscode.Disposable {
+    const provider = new OpenSpecEditorProvider(context, orchestrator);
     return vscode.window.registerCustomEditorProvider(
       OpenSpecEditorProvider.viewType,
       provider,
@@ -153,6 +161,24 @@ export class OpenSpecEditorProvider implements vscode.CustomTextEditorProvider {
             await vscode.commands.executeCommand('vscode.openWith', document.uri, 'default');
           } catch (err: any) {
             vscode.window.showErrorMessage(`Failed to open default editor: ${err.message}`);
+          }
+          break;
+        }
+
+        case 'ADD_TO_CHAT': {
+          const selectedText = message.text;
+          if (selectedText && typeof selectedText === 'string') {
+            const relPath = vscode.workspace.asRelativePath(document.uri);
+            const query = `Referenz \`${relPath}\`:\n> ${selectedText.split('\n').join('\n> ')}\n\n`;
+
+            if (this.orchestrator) {
+              await this.orchestrator.dispatchCustomPrompt(query);
+            } else {
+              const config = vscode.workspace.getConfiguration('openspec');
+              const target = (config.get<string>('aiTarget') as AiTarget) || 'copilot';
+              const orch = new WorkflowOrchestrator(target);
+              await orch.dispatchCustomPrompt(query);
+            }
           }
           break;
         }

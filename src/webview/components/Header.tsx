@@ -13,11 +13,12 @@ import { Button } from './ui/Button';
 interface HeaderProps {
   cliInfo: CliInfo;
   aiTarget: AiTarget;
+  loading?: boolean;
   onSetAiTarget: (target: AiTarget) => void;
   onRefresh: () => void;
 }
 
-export function Header({ cliInfo, aiTarget, onSetAiTarget, onRefresh }: HeaderProps) {
+export function Header({ cliInfo, aiTarget, loading, onSetAiTarget, onRefresh }: HeaderProps) {
   return (
     <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-vscode-border">
       <div className="flex items-center gap-3">
@@ -61,15 +62,23 @@ export function Header({ cliInfo, aiTarget, onSetAiTarget, onRefresh }: HeaderPr
             onChange={(e) => onSetAiTarget(e.target.value as AiTarget)}
             className="bg-transparent border-none text-xs font-medium text-vscode-fg focus:outline-none cursor-pointer"
           >
-            <option value="copilot" className="bg-vscode-card">GitHub Copilot Chat</option>
+            <option value="copilot" className="bg-vscode-card">GitHub Copilot / Auto</option>
+            <option value="cursor" className="bg-vscode-card">Cursor AI Chat</option>
+            <option value="antigravity" className="bg-vscode-card">Google Antigravity</option>
             <option value="terminal" className="bg-vscode-card">Integrated Terminal</option>
             <option value="clipboard" className="bg-vscode-card">Copy to Clipboard</option>
           </select>
         </div>
 
         {/* Refresh */}
-        <Button variant="outline" size="sm" onClick={onRefresh} title="Refresh OpenSpec state">
-          <Icon path={mdiRefresh} className="w-3.5 h-3.5" />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onRefresh}
+          disabled={loading}
+          title="Refresh OpenSpec state"
+        >
+          <Icon path={mdiRefresh} className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-vscode-accent' : ''}`} />
         </Button>
       </div>
     </header>

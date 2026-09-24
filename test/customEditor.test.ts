@@ -19,6 +19,10 @@ vi.mock('vscode', () => {
     },
     workspace: {
       applyEdit,
+      asRelativePath: vi.fn().mockImplementation((uri: any) => uri?.fsPath || String(uri)),
+      getConfiguration: vi.fn().mockReturnValue({
+        get: vi.fn().mockReturnValue('copilot')
+      }),
       onDidChangeTextDocument: vi.fn().mockReturnValue({ dispose: vi.fn() }),
       onDidSaveTextDocument: vi.fn().mockReturnValue({ dispose: vi.fn() })
     },
@@ -37,6 +41,11 @@ vi.mock('vscode', () => {
     },
     WorkspaceEdit: class {
       public replace = vi.fn();
+    },
+    env: {
+      clipboard: {
+        writeText: vi.fn().mockResolvedValue(undefined)
+      }
     }
   };
 });
@@ -144,6 +153,19 @@ describe('OpenSpecEditorProvider', () => {
         'vscode.openWith',
         sampleDoc.uri,
         'default'
+      );
+
+      // Test message handling: ADD_TO_CHAT
+      await messageHandler({
+        command: 'ADD_TO_CHAT',
+        text: 'Sample requirement to ask about',
+        filePath: '/test/openspec/specs/vault/spec.md'
+      });
+      expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
+        'workbench.action.chat.open',
+        expect.objectContaining({
+          query: expect.stringContaining('Sample requirement to ask about')
+        })
       );
     }
   });

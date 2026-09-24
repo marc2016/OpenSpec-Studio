@@ -132,16 +132,21 @@ export class StudioDashboardPanel {
 
     const rootPath = workspaceFolders[0].uri.fsPath;
     const isInitialized = this.detector.hasOpenSpecDirectory();
-    const cliInfo = await this.cliAdapter.resolveCli(rootPath);
 
+    let cliInfo: any;
     let changes: any[] = [];
     let specs: any[] = [];
     let archived: any[] = [];
 
     if (isInitialized) {
-      changes = await this.detector.getActiveChanges();
-      specs = await this.detector.getSpecs();
-      archived = await this.detector.getArchivedChanges();
+      [cliInfo, changes, specs, archived] = await Promise.all([
+        this.cliAdapter.resolveCli(rootPath),
+        this.detector.getActiveChanges(),
+        this.detector.getSpecs(),
+        this.detector.getArchivedChanges()
+      ]);
+    } else {
+      cliInfo = await this.cliAdapter.resolveCli(rootPath);
     }
 
     const state: OpenSpecState = {

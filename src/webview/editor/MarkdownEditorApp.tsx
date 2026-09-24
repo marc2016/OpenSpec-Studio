@@ -27,7 +27,8 @@ import {
   mdiFileDocumentEditOutline,
   mdiCodeBraces,
   mdiCheckCircleOutline,
-  mdiOpenInNew
+  mdiOpenInNew,
+  mdiChatOutline
 } from '@mdi/js';
 import { getVsCodeApi } from '../hooks/useVscodeApi';
 
@@ -86,7 +87,15 @@ export function MarkdownEditorApp() {
   const [isReady, setIsReady] = useState<boolean>(() => Boolean(initialData));
   const [isDirty, setIsDirty] = useState<boolean>(false);
 
+  const [selectionBubble, setSelectionBubble] = useState<{
+    text: string;
+    top: number;
+    left: number;
+    visible: boolean;
+  }>({ text: '', top: 0, left: 0, visible: false });
+
   const editorRef = useRef<MDXEditorMethods | null>(null);
+  const editorBodyRef = useRef<HTMLDivElement | null>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isUserEditRef = useRef<boolean>(false);
   const lastSyncedContentRef = useRef<string>(initialData?.content ?? '');
@@ -154,9 +163,74 @@ export function MarkdownEditorApp() {
     isUserEditRef.current = true;
   }, []);
 
+  const checkSelection = useCallback(() => {
+    requestAnimationFrame(() => {
+      const selection = window.getSelection();
+      if (!selection || selection.isCollapsed || !selection.rangeCount) {
+        setSelectionBubble((prev) => (prev.visible ? { ...prev, visible: false } : prev));
+        return;
+      }
+
+      const text = selection.toString().trim();
+      if (!text || text.length === 0) {
+        setSelectionBubble((prev) => (prev.visible ? { ...prev, visible: false } : prev));
+        return;
+      }
+
+      const editorContainer = editorBodyRef.current;
+      if (!editorContainer) return;
+
+      const anchorNode = selection.anchorNode;
+      const focusNode = selection.focusNode;
+      if (!anchorNode || !focusNode) return;
+
+      if (!editorContainer.contains(anchorNode) || !editorContainer.contains(focusNode)) {
+        setSelectionBubble((prev) => (prev.visible ? { ...prev, visible: false } : prev));
+        return;
+      }
+
+      const range = selection.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      const containerRect = editorContainer.getBoundingClientRect();
+
+      let top = rect.top - 40;
+      if (top < containerRect.top + 8) {
+        top = rect.bottom + 8;
+      }
+
+      let left = rect.left + rect.width / 2;
+      left = Math.max(70, Math.min(window.innerWidth - 70, left));
+
+      setSelectionBubble({
+        text,
+        top,
+        left,
+        visible: true
+      });
+    });
+  }, []);
+
+  const handleAddToChat = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!selectionBubble.text) return;
+
+    vscode.postMessage({
+      command: 'ADD_TO_CHAT',
+      text: selectionBubble.text,
+      filePath
+    });
+
+    setSelectionBubble((prev) => ({ ...prev, visible: false }));
+  }, [selectionBubble.text, filePath, vscode]);
+
   const handleContainerPointerDown = useCallback((e: React.PointerEvent) => {
     const target = e.target as HTMLElement | null;
     if (!target) return;
+
+    if (!target.closest('.openspec-selection-bubble')) {
+      setSelectionBubble((prev) => (prev.visible ? { ...prev, visible: false } : prev));
+    }
 
     if (
       target.closest('button') ||
@@ -223,6 +297,8 @@ export function MarkdownEditorApp() {
       onDrop={markUserInteraction}
       onCompositionStart={markUserInteraction}
       onPointerDown={handleContainerPointerDown}
+      onPointerUp={checkSelection}
+      onKeyUp={checkSelection}
     >
       {/* Top Application Bar */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-vscode-border bg-vscode-card text-xs">
@@ -252,7 +328,11 @@ export function MarkdownEditorApp() {
       </div>
 
       {/* Editor Body with MDXEditor */}
-      <div className="flex-1 p-4 max-w-5xl w-full mx-auto overflow-y-auto">
+      <div
+        ref={editorBodyRef}
+        onScroll={() => setSelectionBubble((prev) => (prev.visible ? { ...prev, visible: false } : prev))}
+        className="flex-1 p-4 max-w-5xl w-full mx-auto overflow-y-auto"
+      >
         <MDXEditor
           ref={editorRef}
           markdown={content}
@@ -301,6 +381,30 @@ export function MarkdownEditorApp() {
           ]}
         />
       </div>
+
+      {/* Floating Add to Chat Bubble */}
+      {selectionBubble.visible && (
+        <div
+          className="openspec-selection-bubble fixed transition-opacity duration-150 z-50 pointer-events-auto"
+          style={{
+            top: `${selectionBubble.top}px`,
+            left: `${selectionBubble.left}px`,
+            transform: 'translateX(-50%)'
+          }}
+        >
+          <button
+            onPointerDown={(e) => {
+              e.preventDefault();
+            }}
+            onClick={handleAddToChat}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-vscode-accent text-white font-medium text-xs shadow-lg hover:brightness-110 active:scale-95 transition-all cursor-pointer border border-white/20"
+            title="Add selection to AI Chat"
+          >
+            <Icon path={mdiChatOutline} className="w-3.5 h-3.5" />
+            <span>Add to Chat</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

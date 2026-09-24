@@ -32,8 +32,34 @@ export class WorkflowOrchestrator {
   public async dispatch(params: WorkflowActionParams, targetOverride?: AiTarget): Promise<void> {
     const target = targetOverride || this.defaultAiTarget;
     const prompt = this.getPrompt(params);
+    await this.dispatchPrompt(prompt, target, params);
+  }
 
-    switch (target) {
+  public async dispatchCustomPrompt(prompt: string, targetOverride?: AiTarget): Promise<void> {
+    const target = targetOverride || this.defaultAiTarget;
+    await this.dispatchPrompt(prompt, target, { action: 'explore', input: prompt });
+  }
+
+  private async dispatchPrompt(prompt: string, target: AiTarget, params: WorkflowActionParams): Promise<void> {
+    let effectiveTarget = target;
+
+    // Auto-detect environment if default 'copilot' target is set
+    if (target === 'copilot') {
+      const appName = (vscode.env.appName || '').toLowerCase();
+      if (appName.includes('antigravity')) {
+        effectiveTarget = 'antigravity';
+      } else if (appName.includes('cursor')) {
+        effectiveTarget = 'cursor';
+      }
+    }
+
+    switch (effectiveTarget) {
+      case 'cursor':
+        await this.dispatchToCursor(prompt);
+        break;
+      case 'antigravity':
+        await this.dispatchToAntigravity(prompt);
+        break;
       case 'copilot':
         await this.dispatchToCopilot(prompt);
         break;
@@ -47,19 +73,113 @@ export class WorkflowOrchestrator {
     }
   }
 
-  private async dispatchToCopilot(prompt: string): Promise<void> {
-    try {
-      // Try opening chat with prefilled query
-      await vscode.commands.executeCommand('workbench.action.chat.open', {
-        query: prompt
-      });
-    } catch (err) {
-      // Fallback if Copilot Chat command is unavailable
-      await this.dispatchToClipboard(prompt);
-      vscode.window.showInformationMessage(
-        `GitHub Copilot Chat could not be opened automatically. Prompt copied to clipboard: "${prompt}"`
-      );
+  private async getAvailableCommands(): Promise<string[]> {
+    if (typeof vscode.commands.getCommands === 'function') {
+      try {
+        return await vscode.commands.getCommands(true);
+      } catch {
+        return [];
+      }
     }
+    return [];
+  }
+
+  private async tryCommands(
+    candidates: Array<{ command: string; args?: any }>,
+    prompt: string,
+    environmentLabel: string
+  ): Promise<boolean> {
+    const availableCommands = await this.getAvailableCommands();
+    const hasCommand = (cmd: string) =>
+      availableCommands.length === 0 ||
+      availableCommands.includes(cmd) ||
+      cmd.startsWith('antigravity.') ||
+      cmd.startsWith('aichat.') ||
+      cmd.startsWith('cursor.');
+
+    for (const candidate of candidates) {
+      if (hasCommand(candidate.command)) {
+        if (candidate.args !== undefined) {
+          try {
+            await vscode.commands.executeCommand(candidate.command, candidate.args);
+            return true;
+          } catch {
+            // Candidate with args failed; fallback to invocation without args below
+          }
+        }
+        try {
+          await vscode.commands.executeCommand(candidate.command);
+          return true;
+        } catch {
+          // Continue to next candidate
+        }
+      }
+    }
+
+    await this.dispatchToClipboard(prompt);
+    vscode.window.showInformationMessage(
+      `${environmentLabel} Chat konnte nicht direkt geöffnet werden. Prompt in Zwischenablage kopiert.`
+    );
+    return false;
+  }
+
+  private async dispatchToCursor(prompt: string): Promise<void> {
+    await vscode.env.clipboard.writeText(prompt);
+    const candidates = [
+      { command: 'aichat.newchataction', args: { query: prompt, text: prompt } },
+      { command: 'aichat.newchataction', args: { query: prompt } },
+      { command: 'aichat.newchataction' },
+      { command: 'workbench.panel.aichat.view.focus' },
+      { command: 'cursor.chat' },
+      { command: 'aichat.focus' },
+      { command: 'aichat.open' },
+      { command: 'workbench.action.chat.open', args: { query: prompt } },
+      { command: 'workbench.action.chat.open' }
+    ];
+    await this.tryCommands(candidates, prompt, 'Cursor AI');
+  }
+
+  private async dispatchToAntigravity(prompt: string): Promise<void> {
+    await vscode.env.clipboard.writeText(prompt);
+    const candidates = [
+      { command: 'antigravity.sendPromptToAgentPanel', args: prompt },
+      { command: 'antigravity.openAgent' },
+      { command: 'antigravity.prioritized.chat.open', args: prompt },
+      { command: 'antigravity.prioritized.chat.open', args: { query: prompt } },
+      { command: 'antigravity.prioritized.chat.open' },
+      { command: 'antigravity.openChatView' },
+      { command: 'workbench.action.chat.open', args: { query: prompt } },
+      { command: 'workbench.action.chat.open' },
+      { command: 'workbench.action.chat.focus' },
+      { command: 'workbench.action.chat.focusInput' },
+      { command: 'workbench.action.chat.newChat' },
+      { command: 'workbench.action.quickchat.toggle', args: { query: prompt } },
+      { command: 'workbench.action.quickchat.toggle' }
+    ];
+    await this.tryCommands(candidates, prompt, 'Antigravity');
+  }
+
+  private async dispatchToCopilot(prompt: string): Promise<void> {
+    await vscode.env.clipboard.writeText(prompt);
+    const candidates = [
+      { command: 'workbench.action.chat.open', args: { query: prompt } },
+      { command: 'workbench.action.chat.open' },
+      { command: 'workbench.action.chat.focus' },
+      { command: 'workbench.action.chat.focusInput' },
+      { command: 'workbench.action.chat.newChat' },
+      { command: 'antigravity.prioritized.chat.open', args: { query: prompt } },
+      { command: 'antigravity.prioritized.chat.open' },
+      { command: 'aichat.newchataction', args: { query: prompt, text: prompt } },
+      { command: 'aichat.newchataction', args: { query: prompt } },
+      { command: 'aichat.newchataction' },
+      { command: 'workbench.panel.aichat.view.focus' },
+      { command: 'cursor.chat' },
+      { command: 'aichat.focus' },
+      { command: 'aichat.open' },
+      { command: 'workbench.action.quickchat.toggle', args: { query: prompt } },
+      { command: 'workbench.action.quickchat.toggle' }
+    ];
+    await this.tryCommands(candidates, prompt, 'AI');
   }
 
   private dispatchToTerminal(prompt: string, params: WorkflowActionParams): void {

@@ -72,7 +72,7 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   // 4. Custom Markdown Editor Provider
-  const customEditorRegistration = OpenSpecEditorProvider.register(context);
+  const customEditorRegistration = OpenSpecEditorProvider.register(context, orchestrator);
 
   const openInCustomEditorCmd = vscode.commands.registerCommand(
     'openspec-studio.openInCustomEditor',

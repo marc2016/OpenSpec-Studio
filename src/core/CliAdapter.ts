@@ -4,37 +4,55 @@ import * as fs from 'fs';
 import { CliInfo, CliMode } from '../shared/types';
 
 export class CliAdapter {
+  private cachedCliInfo: Map<string, CliInfo> = new Map();
+
   constructor(private mode: CliMode = 'auto') {}
 
   public setMode(mode: CliMode) {
-    this.mode = mode;
+    if (this.mode !== mode) {
+      this.mode = mode;
+      this.clearCache();
+    }
   }
 
   public getMode(): CliMode {
     return this.mode;
   }
 
-  public async resolveCli(workspaceRoot: string): Promise<CliInfo> {
+  public clearCache() {
+    this.cachedCliInfo.clear();
+  }
+
+  public async resolveCli(workspaceRoot: string, forceRefresh = false): Promise<CliInfo> {
+    if (!forceRefresh && this.cachedCliInfo.has(workspaceRoot)) {
+      return this.cachedCliInfo.get(workspaceRoot)!;
+    }
+
     const isWindows = process.platform === 'win32';
     const localBinName = isWindows ? 'openspec.cmd' : 'openspec';
     const localBin = path.join(workspaceRoot, 'node_modules', '.bin', localBinName);
+
+    const cacheAndReturn = (info: CliInfo): CliInfo => {
+      this.cachedCliInfo.set(workspaceRoot, info);
+      return info;
+    };
 
     // 1. Try local node_modules
     if (this.mode === 'local' || this.mode === 'auto') {
       if (fs.existsSync(localBin)) {
         const version = await this.getVersion(localBin, workspaceRoot);
-        return {
+        return cacheAndReturn({
           mode: 'local',
           resolvedPath: localBin,
           version,
           isAvailable: true
-        };
+        });
       } else if (this.mode === 'local') {
-        return {
+        return cacheAndReturn({
           mode: 'local',
           resolvedPath: localBin,
           isAvailable: false
-        };
+        });
       }
     }
 
@@ -43,27 +61,27 @@ export class CliAdapter {
       const globalBin = await this.findGlobalBinary();
       if (globalBin) {
         const version = await this.getVersion(globalBin, workspaceRoot);
-        return {
+        return cacheAndReturn({
           mode: 'global',
           resolvedPath: globalBin,
           version,
           isAvailable: true
-        };
+        });
       } else if (this.mode === 'global') {
-        return {
+        return cacheAndReturn({
           mode: 'global',
           resolvedPath: 'openspec',
           isAvailable: false
-        };
+        });
       }
     }
 
     // 3. Fallback to npx
-    return {
+    return cacheAndReturn({
       mode: 'npx',
       resolvedPath: 'npx --yes openspec',
       isAvailable: true
-    };
+    });
   }
 
   private findGlobalBinary(): Promise<string | null> {

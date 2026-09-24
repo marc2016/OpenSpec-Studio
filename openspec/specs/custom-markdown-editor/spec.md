@@ -40,3 +40,25 @@ The system SHALL synchronize webview content changes back to the VS Code text do
 #### Scenario: User edits content in webview
 - **WHEN** user modifies text in the custom editor
 - **THEN** the underlying VS Code document is updated, marking the tab dirty until saved
+
+### Requirement: Contextual Selection Action for AI Chat
+The system SHALL display a floating action bubble when text is selected in the custom markdown editor, allowing users to send the selected text and document reference to the AI chat assistant.
+
+#### Scenario: User sends selection to chat
+- **WHEN** user selects text in the custom markdown editor and clicks the Add to Chat action
+- **THEN** the system opens the AI chat assistant pre-populated with a reference to the active document and the selected text block
+
+#### Scenario: Selection is dismissed
+- **WHEN** user clears the text selection or clicks outside the selection
+- **THEN** the floating action bubble is hidden
+
+### Requirement: Target Section Navigation and Highlighting
+The OpenSpec Markdown Editor SHALL support navigating to a specific requirement section when instructed via navigation messages or initialization options, scrolling the requirement heading into view and applying a distinct visual highlight to the section.
+
+#### Scenario: Navigating to requirement in active editor
+- **WHEN** the custom editor receives a navigation command targeting a requirement name
+- **THEN** the editor locates the corresponding requirement heading in the visual DOM, smoothly scrolls it into view, and applies a temporary highlight animation to the section
+
+#### Scenario: Opening editor with initial target requirement
+- **WHEN** the custom editor is opened with an initial target requirement
+- **THEN** after mounting, the editor automatically scrolls the target requirement into view and applies the highlight animation

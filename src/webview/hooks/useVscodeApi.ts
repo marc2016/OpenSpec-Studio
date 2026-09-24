@@ -99,6 +99,11 @@ export function useOpenSpecStudio() {
     [api]
   );
 
+  const refreshState = useCallback(() => {
+    setState((prev) => ({ ...prev, loading: true }));
+    api.postMessage({ type: 'REQUEST_STATE' });
+  }, [api]);
+
   return {
     state,
     notification,
@@ -107,6 +112,7 @@ export function useOpenSpecStudio() {
     initProject,
     installCli,
     openFile,
-    openChangeFolder
+    openChangeFolder,
+    refreshState
   };
 }
