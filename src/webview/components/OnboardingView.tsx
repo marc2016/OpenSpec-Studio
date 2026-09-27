@@ -9,6 +9,7 @@ import {
 } from '@mdi/js';
 import { Button } from './ui/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/Card';
+import { OpenSpecLogo } from './ui/OpenSpecLogo';
 import { useTranslation } from '../i18n';
 
 interface OnboardingViewProps {
@@ -23,7 +24,7 @@ export function OnboardingView({ onInitProject, onInstallCli, loading }: Onboard
   return (
     <div className="py-12 max-w-2xl mx-auto text-center">
       <div className="w-16 h-16 rounded-2xl bg-vscode-accent/15 border border-vscode-accent/30 flex items-center justify-center mx-auto mb-6 text-vscode-accent shadow-inner">
-        <Icon path={mdiCreation} className="w-8 h-8" />
+        <OpenSpecLogo className="w-9 h-9" />
       </div>
 
       <h2 className="text-2xl font-bold tracking-tight mb-2">{t('onboarding.welcomeTitle')}</h2>

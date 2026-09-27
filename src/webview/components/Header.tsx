@@ -1,7 +1,6 @@
 import React from 'react';
 import Icon from '@mdi/react';
 import {
-  mdiLayers,
   mdiRobotOutline,
   mdiRefresh,
   mdiCheckCircle,
@@ -11,6 +10,7 @@ import {
 } from '@mdi/js';
 import { AiTarget, CliInfo, GitState } from '../../shared/types';
 import { Button } from './ui/Button';
+import { OpenSpecLogo } from './ui/OpenSpecLogo';
 import { useTranslation } from '../i18n';
 
 interface HeaderProps {
@@ -40,7 +40,7 @@ export function Header({
     <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-vscode-border">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-lg bg-vscode-accent/20 border border-vscode-accent/40 flex items-center justify-center text-vscode-accent">
-          <Icon path={mdiLayers} className="w-5 h-5 text-vscode-accent" />
+          <OpenSpecLogo className="w-6 h-6 text-vscode-accent" />
         </div>
         <div>
           <div className="flex items-center gap-2">

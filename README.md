@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="media/icon.png" width="128" height="128" alt="OpenSpec Studio Logo" />
+</p>
+
 # OpenSpec Studio for VS Code
 
 [![CI](https://github.com/marc2016/OpenSpec-Studio/actions/workflows/ci.yml/badge.svg)](https://github.com/marc2016/OpenSpec-Studio/actions/workflows/ci.yml)
