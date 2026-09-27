@@ -28,11 +28,35 @@ import {
   mdiCodeBraces,
   mdiCheckCircleOutline,
   mdiOpenInNew,
-  mdiChatOutline
+  mdiChatOutline,
+  mdiViewDashboardOutline,
+  mdiLightbulbOutline,
+  mdiBookOpenPageVariantOutline,
+  mdiCompassOutline,
+  mdiFormatListCheckbox,
+  mdiChevronDown,
+  mdiCheck
 } from '@mdi/js';
 import { getVsCodeApi } from '../hooks/useVscodeApi';
+import { I18nProvider, useTranslation } from '../i18n';
+import { RelatedFileItem } from '../../shared/types';
 
 const initialData = typeof window !== 'undefined' ? (window as any).OPENSPEC_DATA : undefined;
+
+function getArtifactIcon(kind: RelatedFileItem['kind']) {
+  switch (kind) {
+    case 'proposal':
+      return mdiLightbulbOutline;
+    case 'spec':
+      return mdiBookOpenPageVariantOutline;
+    case 'design':
+      return mdiCompassOutline;
+    case 'tasks':
+      return mdiFormatListCheckbox;
+    default:
+      return mdiFileDocumentEditOutline;
+  }
+}
 
 function navigateToRequirement(requirementName: string) {
   if (!requirementName) return;
@@ -74,7 +98,8 @@ function navigateToRequirement(requirementName: string) {
   attemptScroll();
 }
 
-export function MarkdownEditorApp() {
+function MarkdownEditorAppContent({ onLocaleChange }: { onLocaleChange?: (locale: string) => void }) {
+  const { t } = useTranslation();
   const [content, setContent] = useState<string>(() => initialData?.content ?? '');
   const [filePath, setFilePath] = useState<string>(() => initialData?.filePath ?? '');
   const [fileName, setFileName] = useState<string>(() => {
@@ -84,6 +109,9 @@ export function MarkdownEditorApp() {
     }
     return 'Document.md';
   });
+  const [relatedFiles, setRelatedFiles] = useState<RelatedFileItem[]>(() => initialData?.relatedFiles ?? []);
+  const [isSpecsDropdownOpen, setIsSpecsDropdownOpen] = useState<boolean>(false);
+  const specsDropdownRef = useRef<HTMLDivElement | null>(null);
   const [isReady, setIsReady] = useState<boolean>(() => Boolean(initialData));
   const [isDirty, setIsDirty] = useState<boolean>(false);
 
@@ -101,6 +129,27 @@ export function MarkdownEditorApp() {
   const lastSyncedContentRef = useRef<string>(initialData?.content ?? '');
   const initialContentRef = useRef<string>(initialData?.content ?? '');
   const vscode = getVsCodeApi();
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (specsDropdownRef.current && !specsDropdownRef.current.contains(e.target as Node)) {
+        setIsSpecsDropdownOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsSpecsDropdownOpen(false);
+      }
+    };
+    if (isSpecsDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isSpecsDropdownOpen]);
 
   useEffect(() => {
     // If opened with initial target requirement, navigate after initial render
@@ -122,6 +171,12 @@ export function MarkdownEditorApp() {
           setFilePath(msg.filePath);
           const parts = msg.filePath.split(/[\\/]/);
           setFileName(parts[parts.length - 1] || 'Document.md');
+        }
+        if (msg.relatedFiles) {
+          setRelatedFiles(msg.relatedFiles);
+        }
+        if (msg.locale && onLocaleChange) {
+          onLocaleChange(msg.locale);
         }
         setIsReady(true);
         setIsDirty(Boolean(msg.isDirty));
@@ -157,7 +212,7 @@ export function MarkdownEditorApp() {
         clearTimeout(debounceTimerRef.current);
       }
     };
-  }, []);
+  }, [vscode, onLocaleChange]);
 
   const markUserInteraction = useCallback(() => {
     isUserEditRef.current = true;
@@ -272,6 +327,20 @@ export function MarkdownEditorApp() {
     }, 250);
   }, [vscode]);
 
+  const handleOpenDashboard = () => {
+    vscode.postMessage({
+      command: 'OPEN_DASHBOARD'
+    });
+  };
+
+  const handleOpenFile = (targetPath: string) => {
+    if (targetPath === filePath) return;
+    vscode.postMessage({
+      command: 'OPEN_FILE',
+      filePath: targetPath
+    });
+  };
+
   const handleOpenInDefaultEditor = () => {
     vscode.postMessage({
       command: 'OPEN_IN_DEFAULT_EDITOR',
@@ -282,7 +351,7 @@ export function MarkdownEditorApp() {
   if (!isReady) {
     return (
       <div className="flex items-center justify-center min-h-screen text-vscode-muted text-xs">
-        <span>Loading OpenSpec Markdown Editor...</span>
+        <span>{t('editor.loading')}</span>
       </div>
     );
   }
@@ -301,27 +370,210 @@ export function MarkdownEditorApp() {
       onKeyUp={checkSelection}
     >
       {/* Top Application Bar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-vscode-border bg-vscode-card text-xs">
-        <div className="flex items-center gap-2">
-          <Icon path={mdiFileDocumentEditOutline} className="w-4 h-4 text-vscode-accent" />
-          <span className="font-semibold text-vscode-fg">{fileName}</span>
-          {isDirty && <span className="text-[10px] text-amber-400 font-mono">(unsaved)</span>}
-          {!isDirty && (
-            <span className="text-[10px] text-vscode-muted flex items-center gap-1 font-mono">
-              <Icon path={mdiCheckCircleOutline} className="w-3 h-3 text-emerald-400" />
-              synced
-            </span>
-          )}
+      <div className="flex items-center justify-between px-3 py-1.5 border-b border-vscode-border bg-vscode-card text-xs flex-wrap gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Dashboard Button */}
+          <button
+            onClick={handleOpenDashboard}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-vscode-card border border-vscode-border hover:bg-vscode-hover hover:border-vscode-accent text-vscode-fg transition-colors text-xs font-medium cursor-pointer shadow-xs"
+            title={t('editor.dashboardTooltip')}
+          >
+            <Icon path={mdiViewDashboardOutline} className="w-3.5 h-3.5 text-vscode-accent" />
+            <span>{t('editor.dashboard')}</span>
+          </button>
+
+          <div className="h-4 w-px bg-vscode-border mx-1" />
+
+          {/* Current File indicator */}
+          <div className="flex items-center gap-1.5">
+            <Icon path={mdiFileDocumentEditOutline} className="w-4 h-4 text-vscode-accent" />
+            <span className="font-semibold text-vscode-fg">{fileName}</span>
+            {isDirty && <span className="text-[10px] text-amber-400 font-mono">{t('editor.unsaved')}</span>}
+            {!isDirty && (
+              <span className="text-[10px] text-vscode-muted flex items-center gap-1 font-mono">
+                <Icon path={mdiCheckCircleOutline} className="w-3 h-3 text-emerald-400" />
+                {t('editor.synced')}
+              </span>
+            )}
+          </div>
+
+          {/* Related change files switcher */}
+          {relatedFiles.length > 1 && (() => {
+            const proposalFile = relatedFiles.find((f) => f.kind === 'proposal');
+            const specFiles = relatedFiles.filter((f) => f.kind === 'spec');
+            const designFile = relatedFiles.find((f) => f.kind === 'design');
+            const tasksFile = relatedFiles.find((f) => f.kind === 'tasks');
+            const otherFiles = relatedFiles.filter((f) => f.kind === 'other');
+            const activeSpec = specFiles.find((f) => f.active || f.filePath === filePath);
+            const isSpecActive = Boolean(activeSpec);
+
+            return (
+              <>
+                <div className="h-4 w-px bg-vscode-border mx-1" />
+                <div className="flex items-center gap-1 overflow-x-auto py-0.5">
+                  {/* Proposal Button */}
+                  {proposalFile && (
+                    <button
+                      key={proposalFile.filePath}
+                      onClick={() => handleOpenFile(proposalFile.filePath)}
+                      className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer ${
+                        proposalFile.active || proposalFile.filePath === filePath
+                          ? 'bg-vscode-accent/20 text-vscode-accent border border-vscode-accent/40 font-semibold shadow-2xs'
+                          : 'bg-vscode-bg/80 text-vscode-muted hover:text-vscode-fg hover:bg-vscode-hover border border-vscode-border/50'
+                      }`}
+                      title={t('editor.openFileTooltip', { label: proposalFile.label })}
+                    >
+                      <Icon path={mdiLightbulbOutline} className="w-3 h-3 opacity-90" />
+                      <span>{proposalFile.label}</span>
+                    </button>
+                  )}
+
+                  {/* Single Spec Direct Button */}
+                  {specFiles.length === 1 && (
+                    <button
+                      key={specFiles[0].filePath}
+                      onClick={() => handleOpenFile(specFiles[0].filePath)}
+                      className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer ${
+                        specFiles[0].active || specFiles[0].filePath === filePath
+                          ? 'bg-vscode-accent/20 text-vscode-accent border border-vscode-accent/40 font-semibold shadow-2xs'
+                          : 'bg-vscode-bg/80 text-vscode-muted hover:text-vscode-fg hover:bg-vscode-hover border border-vscode-border/50'
+                      }`}
+                      title={t('editor.openFileTooltip', { label: specFiles[0].label })}
+                    >
+                      <Icon path={mdiBookOpenPageVariantOutline} className="w-3 h-3 opacity-90" />
+                      <span>{specFiles[0].label}</span>
+                    </button>
+                  )}
+
+                  {/* Multiple Specs Dropdown Menu */}
+                  {specFiles.length > 1 && (
+                    <div className="relative inline-block" ref={specsDropdownRef}>
+                      <button
+                        onClick={() => setIsSpecsDropdownOpen((prev) => !prev)}
+                        className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer ${
+                          isSpecActive
+                            ? 'bg-vscode-accent/20 text-vscode-accent border border-vscode-accent/40 font-semibold shadow-2xs'
+                            : 'bg-vscode-bg/80 text-vscode-muted hover:text-vscode-fg hover:bg-vscode-hover border border-vscode-border/50'
+                        }`}
+                        title={t('editor.specsDropdownTooltip')}
+                        aria-expanded={isSpecsDropdownOpen}
+                        aria-haspopup="true"
+                      >
+                        <Icon path={mdiBookOpenPageVariantOutline} className="w-3 h-3 opacity-90" />
+                        <span>
+                          {isSpecActive && activeSpec
+                            ? activeSpec.label
+                            : t('editor.specsDropdownCount', { count: specFiles.length })}
+                        </span>
+                        <Icon
+                          path={mdiChevronDown}
+                          className={`w-3 h-3 opacity-70 transition-transform duration-150 ${
+                            isSpecsDropdownOpen ? 'rotate-180' : ''
+                          }`}
+                        />
+                      </button>
+
+                      {isSpecsDropdownOpen && (
+                        <div className="absolute left-0 mt-1 min-w-[220px] max-w-[340px] max-h-72 overflow-y-auto rounded-md bg-vscode-card border border-vscode-border shadow-2xl z-50 p-1 flex flex-col gap-0.5 animate-in fade-in-50 zoom-in-95">
+                          <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-vscode-muted border-b border-vscode-border/50 mb-0.5">
+                            {t('editor.specsDropdown')} ({specFiles.length})
+                          </div>
+                          {specFiles.map((spec) => {
+                            const isSelected = spec.active || spec.filePath === filePath;
+                            return (
+                              <button
+                                key={spec.filePath}
+                                onClick={() => {
+                                  setIsSpecsDropdownOpen(false);
+                                  handleOpenFile(spec.filePath);
+                                }}
+                                className={`flex items-center justify-between gap-2 px-2 py-1.5 rounded text-[11px] text-left transition-colors cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-vscode-accent/20 text-vscode-accent font-semibold'
+                                    : 'text-vscode-fg hover:bg-vscode-hover hover:text-vscode-fg'
+                                }`}
+                              >
+                                <div className="flex items-center gap-1.5 truncate">
+                                  <Icon path={mdiBookOpenPageVariantOutline} className="w-3.5 h-3.5 shrink-0 opacity-80" />
+                                  <span className="truncate">{spec.label.replace(/^Spec:\s*/, '')}</span>
+                                </div>
+                                {isSelected && <Icon path={mdiCheck} className="w-3.5 h-3.5 shrink-0 text-vscode-accent" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Design Button */}
+                  {designFile && (
+                    <button
+                      key={designFile.filePath}
+                      onClick={() => handleOpenFile(designFile.filePath)}
+                      className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer ${
+                        designFile.active || designFile.filePath === filePath
+                          ? 'bg-vscode-accent/20 text-vscode-accent border border-vscode-accent/40 font-semibold shadow-2xs'
+                          : 'bg-vscode-bg/80 text-vscode-muted hover:text-vscode-fg hover:bg-vscode-hover border border-vscode-border/50'
+                      }`}
+                      title={t('editor.openFileTooltip', { label: designFile.label })}
+                    >
+                      <Icon path={mdiCompassOutline} className="w-3 h-3 opacity-90" />
+                      <span>{designFile.label}</span>
+                    </button>
+                  )}
+
+                  {/* Tasks Button */}
+                  {tasksFile && (
+                    <button
+                      key={tasksFile.filePath}
+                      onClick={() => handleOpenFile(tasksFile.filePath)}
+                      className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer ${
+                        tasksFile.active || tasksFile.filePath === filePath
+                          ? 'bg-vscode-accent/20 text-vscode-accent border border-vscode-accent/40 font-semibold shadow-2xs'
+                          : 'bg-vscode-bg/80 text-vscode-muted hover:text-vscode-fg hover:bg-vscode-hover border border-vscode-border/50'
+                      }`}
+                      title={t('editor.openFileTooltip', { label: tasksFile.label })}
+                    >
+                      <Icon path={mdiFormatListCheckbox} className="w-3 h-3 opacity-90" />
+                      <span>{tasksFile.label}</span>
+                    </button>
+                  )}
+
+                  {/* Other Files */}
+                  {otherFiles.map((file) => {
+                    const isActive = file.active || file.filePath === filePath;
+                    return (
+                      <button
+                        key={file.filePath}
+                        onClick={() => handleOpenFile(file.filePath)}
+                        className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer ${
+                          isActive
+                            ? 'bg-vscode-accent/20 text-vscode-accent border border-vscode-accent/40 font-semibold shadow-2xs'
+                            : 'bg-vscode-bg/80 text-vscode-muted hover:text-vscode-fg hover:bg-vscode-hover border border-vscode-border/50'
+                        }`}
+                        title={t('editor.openFileTooltip', { label: file.label })}
+                      >
+                        <Icon path={getArtifactIcon(file.kind)} className="w-3 h-3 opacity-90" />
+                        <span>{file.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            );
+          })()}
         </div>
 
+        {/* Action to switch to default text editor */}
         <div className="flex items-center gap-2">
           <button
             onClick={handleOpenInDefaultEditor}
             className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-vscode-button-bg text-vscode-button-fg hover:bg-vscode-button-hover transition-colors text-xs font-medium cursor-pointer shadow-xs"
-            title="Open this file in VS Code's standard text editor"
+            title={t('editor.openDefaultEditorTooltip')}
           >
             <Icon path={mdiCodeBraces} className="w-3.5 h-3.5" />
-            <span>In VS Code Text-Editor öffnen</span>
+            <span>{t('editor.openDefaultEditor')}</span>
             <Icon path={mdiOpenInNew} className="w-3 h-3 opacity-70" />
           </button>
         </div>
@@ -408,3 +660,24 @@ export function MarkdownEditorApp() {
     </div>
   );
 }
+
+export function MarkdownEditorApp() {
+  const [locale, setLocale] = useState<string>(() => initialData?.locale ?? 'en');
+
+  useEffect(() => {
+    const handleMsg = (event: MessageEvent) => {
+      if (event.data?.type === 'INIT_EDITOR' && event.data.locale) {
+        setLocale(event.data.locale);
+      }
+    };
+    window.addEventListener('message', handleMsg);
+    return () => window.removeEventListener('message', handleMsg);
+  }, []);
+
+  return (
+    <I18nProvider locale={locale}>
+      <MarkdownEditorAppContent onLocaleChange={setLocale} />
+    </I18nProvider>
+  );
+}
+

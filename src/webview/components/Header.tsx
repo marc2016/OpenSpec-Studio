@@ -5,10 +5,13 @@ import {
   mdiRobotOutline,
   mdiRefresh,
   mdiCheckCircle,
-  mdiAlertCircle
+  mdiAlertCircle,
+  mdiSourceBranch,
+  mdiUpload
 } from '@mdi/js';
-import { AiTarget, CliInfo } from '../../shared/types';
+import { AiTarget, CliInfo, GitState } from '../../shared/types';
 import { Button } from './ui/Button';
+import { useTranslation } from '../i18n';
 
 interface HeaderProps {
   cliInfo: CliInfo;
@@ -16,9 +19,23 @@ interface HeaderProps {
   loading?: boolean;
   onSetAiTarget: (target: AiTarget) => void;
   onRefresh: () => void;
+  gitState?: GitState;
+  onOpenShareModal?: () => void;
+  onOpenBranchModal?: () => void;
 }
 
-export function Header({ cliInfo, aiTarget, loading, onSetAiTarget, onRefresh }: HeaderProps) {
+export function Header({
+  cliInfo,
+  aiTarget,
+  loading,
+  onSetAiTarget,
+  onRefresh,
+  gitState,
+  onOpenShareModal,
+  onOpenBranchModal
+}: HeaderProps) {
+  const { t } = useTranslation();
+
   return (
     <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-vscode-border">
       <div className="flex items-center gap-3">
@@ -27,13 +44,13 @@ export function Header({ cliInfo, aiTarget, loading, onSetAiTarget, onRefresh }:
         </div>
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight">OpenSpec Studio</h1>
+            <h1 className="text-xl font-bold tracking-tight">{t('header.title')}</h1>
             <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-vscode-accent/15 text-vscode-accent border border-vscode-accent/30">
-              v0.1.0
+              {t('header.version')}
             </span>
           </div>
           <p className="text-xs text-vscode-muted mt-0.5">
-            Spec-driven engineering, changes & autonomous AI workflows
+            {t('header.subtitle')}
           </p>
         </div>
       </div>
@@ -46,7 +63,7 @@ export function Header({ cliInfo, aiTarget, loading, onSetAiTarget, onRefresh }:
           ) : (
             <Icon path={mdiAlertCircle} className="w-3.5 h-3.5 text-amber-400" />
           )}
-          <span className="text-vscode-muted">CLI:</span>
+          <span className="text-vscode-muted">{t('header.cli')}</span>
           <span className="font-mono font-medium">
             {cliInfo.mode} {cliInfo.version ? `(${cliInfo.version})` : ''}
           </span>
@@ -55,20 +72,52 @@ export function Header({ cliInfo, aiTarget, loading, onSetAiTarget, onRefresh }:
         {/* AI Target Selector */}
         <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-vscode-card border border-vscode-border text-xs">
           <span className="text-vscode-muted flex items-center gap-1">
-            <Icon path={mdiRobotOutline} className="w-3.5 h-3.5" /> AI:
+            <Icon path={mdiRobotOutline} className="w-3.5 h-3.5" /> {t('header.ai')}
           </span>
           <select
             value={aiTarget}
             onChange={(e) => onSetAiTarget(e.target.value as AiTarget)}
             className="bg-transparent border-none text-xs font-medium text-vscode-fg focus:outline-none cursor-pointer"
           >
-            <option value="copilot" className="bg-vscode-card">GitHub Copilot / Auto</option>
-            <option value="cursor" className="bg-vscode-card">Cursor AI Chat</option>
-            <option value="antigravity" className="bg-vscode-card">Google Antigravity</option>
-            <option value="terminal" className="bg-vscode-card">Integrated Terminal</option>
-            <option value="clipboard" className="bg-vscode-card">Copy to Clipboard</option>
+            <option value="copilot" className="bg-vscode-card">{t('aiTargets.copilot')}</option>
+            <option value="cursor" className="bg-vscode-card">{t('aiTargets.cursor')}</option>
+            <option value="antigravity" className="bg-vscode-card">{t('aiTargets.antigravity')}</option>
+            <option value="terminal" className="bg-vscode-card">{t('aiTargets.terminal')}</option>
+            <option value="clipboard" className="bg-vscode-card">{t('aiTargets.clipboard')}</option>
           </select>
         </div>
+
+        {/* Git Branch Badge */}
+        {gitState?.isGitRepo && (
+          <div
+            onClick={onOpenBranchModal}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-vscode-card border border-vscode-border hover:border-vscode-accent/50 text-xs cursor-pointer transition-colors"
+            title={t('header.branchTooltip')}
+          >
+            <Icon path={mdiSourceBranch} className="w-3.5 h-3.5 text-vscode-accent" />
+            <span className="font-mono font-medium truncate max-w-[130px] text-vscode-fg">
+              {gitState.branch || 'HEAD'}
+            </span>
+            {gitState.uncommittedCount > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full bg-amber-500/15 text-amber-400 text-[10px] font-mono border border-amber-500/30 font-semibold" title={t('header.uncommittedTooltip', { count: gitState.uncommittedCount })}>
+                {gitState.uncommittedCount}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Git Save & Share */}
+        {gitState?.isGitRepo && (
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={onOpenShareModal}
+            title={t('header.saveAndShare')}
+          >
+            <Icon path={mdiUpload} className="w-3.5 h-3.5 mr-1" />
+            {t('header.saveAndShare')}
+          </Button>
+        )}
 
         {/* Refresh */}
         <Button
@@ -76,7 +125,7 @@ export function Header({ cliInfo, aiTarget, loading, onSetAiTarget, onRefresh }:
           size="sm"
           onClick={onRefresh}
           disabled={loading}
-          title="Refresh OpenSpec state"
+          title={t('header.refreshTooltip')}
         >
           <Icon path={mdiRefresh} className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-vscode-accent' : ''}`} />
         </Button>

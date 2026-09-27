@@ -70,18 +70,31 @@ The system SHALL display the primary studio dashboard as a full editor tab (`Web
 - **THEN** the dashboard retains its current view state, expanded sections, and scroll position without remounting
 
 ### Requirement: Active changes presentation
-The system SHALL render all active changes in the workspace with status badges, task completion progress, linked artifacts, and quick action buttons.
+The system SHALL render all active changes in the workspace with status badges, task completion progress, linked artifacts, quick action buttons, and a one-click clipboard copy action for the change name.
 
 #### Scenario: Displaying change progress
 - **WHEN** active changes exist with tasks in `tasks.md`
 - **THEN** the dashboard displays a visual progress bar indicating completed tasks versus total tasks for each change
 
+#### Scenario: Copying change name to clipboard
+- **WHEN** the user clicks the copy button next to the change name on an active change card
+- **THEN** the system copies the change name string to the system clipboard without toggling card expansion, and displays temporary visual confirmation (e.g. checkmark icon and "Copied!" tooltip state)
+
+
 ### Requirement: Durable specs exploration
-The system SHALL list all durable capability specifications present in `openspec/specs/` and allow inspecting their requirements and scenarios.
+The system SHALL list all durable capability specifications present in `openspec/specs/` and allow inspecting their requirements and scenarios with structured scenario cards, distinct WHEN/THEN badges, and clear typography.
 
 #### Scenario: Inspecting capability details
 - **WHEN** the user selects a capability in the specs list
-- **THEN** the dashboard displays its requirements and associated scenarios in an expandable view
+- **THEN** the dashboard displays its requirements and associated scenarios in an expandable view with high-readability typography
+
+#### Scenario: Scenario cards with WHEN and THEN badges
+- **WHEN** the user expands a capability specification with scenarios
+- **THEN** each scenario is rendered in an individual card with sky-blue WHEN and emerald-green THEN pill badges
+
+#### Scenario: Requirement scenario count badge
+- **WHEN** a requirement contains defined scenarios
+- **THEN** the requirement card displays a badge indicating the total count of scenarios
 
 ### Requirement: Archived changes history
 The system SHALL list previously archived changes with their archive dates and summary information.

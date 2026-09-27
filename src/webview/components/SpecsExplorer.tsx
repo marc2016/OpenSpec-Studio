@@ -15,6 +15,7 @@ import { Button } from './ui/Button';
 import { FilterSortToolbar } from './ui/FilterSortToolbar';
 import { SkeletonCard } from './ui/SkeletonCard';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
+import { useTranslation } from '../i18n';
 
 interface SpecsExplorerProps {
   specs: OpenSpecCapability[];
@@ -22,17 +23,18 @@ interface SpecsExplorerProps {
   onOpenFile: (path: string) => void;
 }
 
-const SORT_OPTIONS = [
-  { label: 'Name (A → Z)', value: 'name-asc' },
-  { label: 'Name (Z → A)', value: 'name-desc' },
-  { label: 'Most requirements first', value: 'reqs-desc' },
-  { label: 'Least requirements first', value: 'reqs-asc' }
-];
-
 export function SpecsExplorer({ specs, loading, onOpenFile }: SpecsExplorerProps) {
+  const { t } = useTranslation();
   const [expandedSpec, setExpandedSpec] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useLocalStorageState('openspec.specs.sort', 'name-asc');
+
+  const sortOptions = useMemo(() => [
+    { label: t('filterSort.sortNameAsc'), value: 'name-asc' },
+    { label: t('filterSort.sortNameDesc'), value: 'name-desc' },
+    { label: t('filterSort.sortReqDesc'), value: 'reqs-desc' },
+    { label: t('filterSort.sortReqAsc'), value: 'reqs-asc' }
+  ], [t]);
 
   const toggleExpand = (id: string) => {
     setExpandedSpec((prev) => (prev === id ? null : id));
@@ -74,9 +76,9 @@ export function SpecsExplorer({ specs, loading, onOpenFile }: SpecsExplorerProps
     return (
       <Card className="border-dashed py-8 text-center">
         <Icon path={mdiBookOpenPageVariantOutline} className="w-8 h-8 text-vscode-muted mx-auto mb-2 opacity-50" />
-        <h4 className="text-sm font-medium">No Durable Specs Found</h4>
+        <h4 className="text-sm font-medium">{t('specs.emptyTitle')}</h4>
         <p className="text-xs text-vscode-muted mt-1 max-w-xs mx-auto">
-          Durable specifications live in <code className="font-mono text-xs">openspec/specs/</code> and represent completed, persistent system capabilities.
+          {t('specs.emptyDesc')}
         </p>
       </Card>
     );
@@ -87,10 +89,10 @@ export function SpecsExplorer({ specs, loading, onOpenFile }: SpecsExplorerProps
       <FilterSortToolbar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        searchPlaceholder="Search specs by name or purpose..."
+        searchPlaceholder={t('specs.filterPlaceholder')}
         sortValue={sortBy}
         onSortChange={setSortBy}
-        sortOptions={SORT_OPTIONS}
+        sortOptions={sortOptions}
         totalCount={specs.length}
         filteredCount={filteredAndSortedSpecs.length}
       />
@@ -98,13 +100,13 @@ export function SpecsExplorer({ specs, loading, onOpenFile }: SpecsExplorerProps
       {filteredAndSortedSpecs.length === 0 ? (
         <Card className="border-dashed py-8 text-center bg-vscode-bg/30">
           <Icon path={mdiFilterOffOutline} className="w-8 h-8 text-vscode-muted mx-auto mb-2 opacity-50" />
-          <h4 className="text-sm font-medium">No Matching Specifications</h4>
+          <h4 className="text-sm font-medium">{t('specs.noMatchTitle')}</h4>
           <p className="text-xs text-vscode-muted mt-1 max-w-sm mx-auto">
-            No durable specifications match your current search query.
+            {t('specs.noMatchDesc')}
           </p>
           <div className="mt-3">
             <Button variant="outline" size="sm" onClick={() => setSearchQuery('')}>
-              Clear Search
+              {t('filterSort.clearSearch')}
             </Button>
           </div>
         </Card>
@@ -143,13 +145,13 @@ export function SpecsExplorer({ specs, loading, onOpenFile }: SpecsExplorerProps
 
                     <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                       <Badge variant="secondary">
-                        {spec.requirementsCount} reqs
+                        {t('specs.requirementsCount', { count: spec.requirementsCount })}
                       </Badge>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => onOpenFile(spec.path)}
-                        title="Open spec.md"
+                        title={t('specs.openSpec')}
                       >
                         <Icon path={mdiFileCodeOutline} className="w-3.5 h-3.5" />
                       </Button>
@@ -158,33 +160,61 @@ export function SpecsExplorer({ specs, loading, onOpenFile }: SpecsExplorerProps
                 </CardHeader>
 
                 {isExpanded && spec.requirements && spec.requirements.length > 0 && (
-                  <CardContent className="p-4 pt-2 border-t border-vscode-border/50 bg-vscode-bg/20 space-y-3">
+                  <CardContent className="p-4 pt-3 border-t border-vscode-border/50 bg-vscode-bg/20 space-y-3.5">
                     {spec.requirements.map((req, idx) => (
-                      <div key={idx} className="bg-vscode-card p-3 rounded-md border border-vscode-border/60 text-xs">
-                        <div className="font-semibold text-vscode-fg flex items-center gap-1.5 mb-1">
-                          <Icon path={mdiCheckCircle} className="w-3.5 h-3.5 text-vscode-accent" />
-                          {req.name}
+                      <div key={idx} className="bg-vscode-card p-3.5 rounded-lg border border-vscode-border/60 shadow-xs">
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <div className="font-semibold text-sm text-vscode-fg flex items-center gap-2">
+                            <Icon path={mdiCheckCircle} className="w-4 h-4 text-vscode-accent shrink-0" />
+                            <span>{req.name}</span>
+                          </div>
+                          {req.scenarios.length > 0 && (
+                            <Badge variant="secondary" className="text-[11px] px-2 py-0.5 shrink-0 font-normal">
+                              {t('specs.scenariosCount', { count: req.scenarios.length })}
+                            </Badge>
+                          )}
                         </div>
+
                         {req.description && (
-                          <p className="text-vscode-muted mb-2 text-[11px] whitespace-pre-wrap">
+                          <p className="text-vscode-muted text-xs leading-relaxed mb-3 whitespace-pre-wrap">
                             {req.description}
                           </p>
                         )}
+
                         {req.scenarios.length > 0 && (
-                          <div className="space-y-1.5 pl-3 border-l-2 border-vscode-accent/30 mt-2">
+                          <div className="space-y-2 mt-3">
                             {req.scenarios.map((sc, sIdx) => (
-                              <div key={sIdx} className="text-[11px]">
-                                <div className="font-medium text-vscode-fg">Scenario: {sc.name}</div>
-                                {sc.when && (
-                                  <div className="text-vscode-muted font-mono">
-                                    <strong className="text-sky-400">WHEN</strong> {sc.when}
-                                  </div>
-                                )}
-                                {sc.then && (
-                                  <div className="text-vscode-muted font-mono">
-                                    <strong className="text-emerald-400">THEN</strong> {sc.then}
-                                  </div>
-                                )}
+                              <div
+                                key={sIdx}
+                                className="bg-vscode-bg/50 rounded-md border border-vscode-border/50 p-3 space-y-2 transition-colors hover:border-vscode-border/80"
+                              >
+                                <div className="font-medium text-xs text-vscode-fg flex items-center gap-1.5">
+                                  <span className="text-vscode-muted font-normal text-[11px]">Scenario:</span>
+                                  <span>{sc.name}</span>
+                                </div>
+
+                                <div className="space-y-1.5 text-xs">
+                                  {sc.when && (
+                                    <div className="flex items-baseline gap-2">
+                                      <span className="bg-sky-500/15 text-sky-400 border border-sky-500/30 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0 select-none">
+                                        WHEN
+                                      </span>
+                                      <span className="text-vscode-fg/90 leading-snug">
+                                        {sc.when}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {sc.then && (
+                                    <div className="flex items-baseline gap-2">
+                                      <span className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0 select-none">
+                                        THEN
+                                      </span>
+                                      <span className="text-vscode-fg/90 leading-snug">
+                                        {sc.then}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             ))}
                           </div>

@@ -60,6 +60,23 @@ export interface OpenSpecArchivedChange {
   archivedDate?: string;
 }
 
+export interface GitState {
+  isGitRepo: boolean;
+  branch?: string;
+  uncommittedCount: number;
+  remoteUrl?: string;
+  compareUrl?: string;
+}
+
+export interface GitOperationResult {
+  success: boolean;
+  operation: 'create_branch' | 'switch_branch' | 'commit_and_push';
+  message?: string;
+  branch?: string;
+  shareUrl?: string;
+  error?: string;
+}
+
 export interface OpenSpecState {
   isInitialized: boolean;
   rootPath?: string;
@@ -70,12 +87,15 @@ export interface OpenSpecState {
   archived: OpenSpecArchivedChange[];
   loading: boolean;
   error?: string;
+  git?: GitState;
+  locale?: 'en' | 'de';
 }
 
 // Host -> Webview messages
 export type ToWebviewMessage =
   | { type: 'STATE_UPDATE'; state: OpenSpecState }
-  | { type: 'NOTIFICATION'; message: string; level: 'info' | 'warning' | 'error' };
+  | { type: 'NOTIFICATION'; message: string; level: 'info' | 'warning' | 'error' }
+  | { type: 'GIT_OPERATION_RESULT'; result: GitOperationResult };
 
 // Webview -> Host messages
 export type FromWebviewMessage =
@@ -85,4 +105,15 @@ export type FromWebviewMessage =
   | { type: 'SET_AI_TARGET'; aiTarget: AiTarget }
   | { type: 'RUN_WORKFLOW'; action: 'propose' | 'explore' | 'apply' | 'sync' | 'archive'; changeName?: string; input?: string }
   | { type: 'OPEN_FILE'; filePath: string }
-  | { type: 'OPEN_CHANGE_FOLDER'; changeName: string };
+  | { type: 'OPEN_CHANGE_FOLDER'; changeName: string }
+  | { type: 'CREATE_BRANCH'; branchName: string }
+  | { type: 'SWITCH_BRANCH'; branchName: string }
+  | { type: 'COMMIT_AND_PUSH'; message?: string };
+
+export interface RelatedFileItem {
+  label: string;
+  filePath: string;
+  kind: 'proposal' | 'design' | 'tasks' | 'spec' | 'other';
+  active?: boolean;
+}
+

@@ -8,9 +8,13 @@ import {
   mdiPlay,
   mdiFileDocumentOutline,
   mdiFolderOpenOutline,
-  mdiFilterOffOutline
+  mdiFilterOffOutline,
+  mdiSourceBranch,
+  mdiUpload,
+  mdiContentCopy,
+  mdiCheck
 } from '@mdi/js';
-import { OpenSpecChange } from '../../shared/types';
+import { OpenSpecChange, GitState } from '../../shared/types';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/Card';
 import { Badge } from './ui/Badge';
 import { Progress } from './ui/Progress';
@@ -18,6 +22,23 @@ import { Button } from './ui/Button';
 import { FilterSortToolbar } from './ui/FilterSortToolbar';
 import { SkeletonCard } from './ui/SkeletonCard';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
+import { useTranslation } from '../i18n';
+
+function fallbackCopyText(text: string) {
+  try {
+    const el = document.createElement('textarea');
+    el.value = text;
+    el.setAttribute('readonly', '');
+    el.style.position = 'absolute';
+    el.style.left = '-9999px';
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+  } catch (err) {
+    console.error('Fallback copy failed:', err);
+  }
+}
 
 interface ActiveChangesGridProps {
   changes: OpenSpecChange[];
@@ -25,31 +46,61 @@ interface ActiveChangesGridProps {
   onRunWorkflow: (action: 'propose' | 'explore' | 'apply' | 'sync' | 'archive', changeName?: string) => void;
   onOpenFile: (path: string) => void;
   onOpenFolder: (changeName: string) => void;
+  gitState?: GitState;
+  onOpenBranchModal?: (changeName: string) => void;
+  onOpenShareModal?: (changeName: string) => void;
 }
 
-const SORT_OPTIONS = [
-  { label: 'Completed first (100% → 0%)', value: 'completed-first' },
-  { label: 'Least completed first (0% → 100%)', value: 'uncompleted-first' },
-  { label: 'Recently modified', value: 'date-desc' },
-  { label: 'Oldest modified', value: 'date-asc' },
-  { label: 'Name (A → Z)', value: 'name-asc' },
-  { label: 'Name (Z → A)', value: 'name-desc' }
-];
-
-const STATUS_OPTIONS = [
-  { label: 'All Statuses', value: 'all' },
-  { label: 'Completed', value: 'completed' },
-  { label: 'In Progress', value: 'in progress' },
-  { label: 'Ready', value: 'ready' },
-  { label: 'Draft', value: 'draft' }
-];
-
-export function ActiveChangesGrid({ changes, loading, onRunWorkflow, onOpenFile, onOpenFolder }: ActiveChangesGridProps) {
+export function ActiveChangesGrid({
+  changes,
+  loading,
+  onRunWorkflow,
+  onOpenFile,
+  onOpenFolder,
+  gitState,
+  onOpenBranchModal,
+  onOpenShareModal
+}: ActiveChangesGridProps) {
+  const { t } = useTranslation();
   const [expandedChange, setExpandedChange] = useState<string | null>(changes[0]?.name || null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [copiedChangeName, setCopiedChangeName] = useState<string | null>(null);
   const [sortBy, setSortBy] = useLocalStorageState('openspec.activeChanges.sort', 'completed-first');
   const [statusFilter, setStatusFilter] = useLocalStorageState('openspec.activeChanges.status', 'all');
   const [hideCompleted, setHideCompleted] = useLocalStorageState('openspec.activeChanges.hideCompleted', false);
+
+  const handleCopyChangeName = (name: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(name).catch(() => {
+        fallbackCopyText(name);
+      });
+    } else {
+      fallbackCopyText(name);
+    }
+    setCopiedChangeName(name);
+    setTimeout(() => {
+      setCopiedChangeName((prev) => (prev === name ? null : prev));
+    }, 2000);
+  };
+
+  const sortOptions = useMemo(() => [
+    { label: t('filterSort.sortCompletedFirst'), value: 'completed-first' },
+    { label: t('filterSort.sortUncompletedFirst'), value: 'uncompleted-first' },
+    { label: t('filterSort.sortDateDesc'), value: 'date-desc' },
+    { label: t('filterSort.sortDateAsc'), value: 'date-asc' },
+    { label: t('filterSort.sortNameAsc'), value: 'name-asc' },
+    { label: t('filterSort.sortNameDesc'), value: 'name-desc' }
+  ], [t]);
+
+  const statusOptions = useMemo(() => [
+    { label: t('filterSort.allStatuses'), value: 'all' },
+    { label: t('filterSort.completed'), value: 'completed' },
+    { label: t('filterSort.inProgress'), value: 'in progress' },
+    { label: t('filterSort.ready'), value: 'ready' },
+    { label: t('filterSort.draft'), value: 'draft' }
+  ], [t]);
 
   const toggleExpand = (name: string) => {
     setExpandedChange((prev) => (prev === name ? null : name));
@@ -129,9 +180,9 @@ export function ActiveChangesGrid({ changes, loading, onRunWorkflow, onOpenFile,
     return (
       <Card className="border-dashed py-8 text-center">
         <Icon path={mdiSourcePull} className="w-8 h-8 text-vscode-muted mx-auto mb-2 opacity-50" />
-        <h4 className="text-sm font-medium">No Active Changes</h4>
+        <h4 className="text-sm font-medium">{t('activeChanges.emptyTitle')}</h4>
         <p className="text-xs text-vscode-muted mt-1 max-w-sm mx-auto">
-          Start your next feature or refactor by clicking <strong className="text-vscode-fg">Propose Change</strong> above.
+          {t('activeChanges.emptyDesc')}
         </p>
       </Card>
     );
@@ -148,14 +199,14 @@ export function ActiveChangesGrid({ changes, loading, onRunWorkflow, onOpenFile,
       <FilterSortToolbar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        searchPlaceholder="Filter active changes..."
+        searchPlaceholder={t('activeChanges.filterPlaceholder')}
         filterValue={statusFilter}
         onFilterChange={setStatusFilter}
-        filterOptions={STATUS_OPTIONS}
+        filterOptions={statusOptions}
         sortValue={sortBy}
         onSortChange={setSortBy}
-        sortOptions={SORT_OPTIONS}
-        toggleLabel="Hide completed"
+        sortOptions={sortOptions}
+        toggleLabel={t('filterSort.hideCompleted')}
         toggleChecked={hideCompleted}
         onToggleChange={setHideCompleted}
         totalCount={changes.length}
@@ -165,13 +216,13 @@ export function ActiveChangesGrid({ changes, loading, onRunWorkflow, onOpenFile,
       {filteredAndSortedChanges.length === 0 ? (
         <Card className="border-dashed py-8 text-center bg-vscode-bg/30">
           <Icon path={mdiFilterOffOutline} className="w-8 h-8 text-vscode-muted mx-auto mb-2 opacity-50" />
-          <h4 className="text-sm font-medium">No Matching Changes</h4>
+          <h4 className="text-sm font-medium">{t('activeChanges.noMatchTitle')}</h4>
           <p className="text-xs text-vscode-muted mt-1 max-w-sm mx-auto">
-            No active changes match your current search query or filter criteria.
+            {t('activeChanges.noMatchDesc')}
           </p>
           <div className="mt-3">
             <Button variant="outline" size="sm" onClick={resetFilters}>
-              Clear Filters
+              {t('activeChanges.clearFilters')}
             </Button>
           </div>
         </Card>
@@ -201,21 +252,53 @@ export function ActiveChangesGrid({ changes, loading, onRunWorkflow, onOpenFile,
                         <Icon path={mdiSourcePull} className="w-4 h-4" />
                       </div>
                       <div>
-                        <CardTitle className="text-sm font-semibold hover:text-vscode-accent transition-colors">
-                          {change.name}
-                        </CardTitle>
-                        <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center gap-1.5">
+                          <CardTitle className="text-sm font-semibold hover:text-vscode-accent transition-colors">
+                            {change.name}
+                          </CardTitle>
+                          <button
+                            type="button"
+                            onClick={(e) => handleCopyChangeName(change.name, e)}
+                            className={`p-1 rounded transition-colors cursor-pointer ${
+                              copiedChangeName === change.name
+                                ? 'text-emerald-400 bg-emerald-500/10'
+                                : 'text-vscode-muted hover:text-vscode-fg hover:bg-vscode-bg'
+                            }`}
+                            title={
+                              copiedChangeName === change.name
+                                ? t('activeChanges.copiedName')
+                                : t('activeChanges.copyName')
+                            }
+                            aria-label={
+                              copiedChangeName === change.name
+                                ? t('activeChanges.copiedName')
+                                : t('activeChanges.copyName')
+                            }
+                          >
+                            <Icon
+                              path={copiedChangeName === change.name ? mdiCheck : mdiContentCopy}
+                              className="w-3.5 h-3.5"
+                            />
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <Badge variant={getStatusVariant(change.status)}>
                             {change.status}
                           </Badge>
+                          {gitState?.isGitRepo && gitState.branch && (gitState.branch === `change/${change.name}` || gitState.branch.includes(change.name)) && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-vscode-accent/15 text-vscode-accent border border-vscode-accent/30 font-medium">
+                              <Icon path={mdiSourceBranch} className="w-3 h-3" />
+                              {t('activeChanges.currentBranch')}
+                            </span>
+                          )}
                           <span className="text-xs text-vscode-muted font-mono">
-                            {change.completedTasks} / {change.totalTasks} tasks ({progressPercent}%)
+                            {t('activeChanges.tasksProgress', { completed: change.completedTasks, total: change.totalTasks, percent: progressPercent })}
                           </span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                       <Button
                         variant="default"
                         size="sm"
@@ -223,13 +306,35 @@ export function ActiveChangesGrid({ changes, loading, onRunWorkflow, onOpenFile,
                         className="gap-1.5"
                       >
                         <Icon path={mdiPlay} className="w-3.5 h-3.5" />
-                        Run AI Apply
+                        {t('activeChanges.runApply')}
                       </Button>
+
+                      {gitState?.isGitRepo && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onOpenBranchModal?.(change.name)}
+                            title={t('activeChanges.branchActionTooltip', { name: change.name })}
+                          >
+                            <Icon path={mdiSourceBranch} className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onOpenShareModal?.(change.name)}
+                            title={t('activeChanges.shareActionTooltip', { name: change.name })}
+                          >
+                            <Icon path={mdiUpload} className="w-3.5 h-3.5" />
+                          </Button>
+                        </>
+                      )}
+
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => onOpenFolder(change.name)}
-                        title="Open change folder"
+                        title={t('activeChanges.openFolder')}
                       >
                         <Icon path={mdiFolderOpenOutline} className="w-3.5 h-3.5" />
                       </Button>
@@ -248,7 +353,7 @@ export function ActiveChangesGrid({ changes, loading, onRunWorkflow, onOpenFile,
                     {/* Artifacts pills */}
                     <div>
                       <div className="text-[11px] font-semibold uppercase tracking-wider text-vscode-muted mb-2">
-                        Planning Artifacts
+                        {t('activeChanges.planningArtifacts')}
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {change.artifacts.map((art) => (
@@ -267,7 +372,7 @@ export function ActiveChangesGrid({ changes, loading, onRunWorkflow, onOpenFile,
                             {art.exists ? (
                               <Icon path={mdiCheckCircle} className="w-3 h-3 text-emerald-400 ml-0.5" />
                             ) : (
-                              <span className="text-[10px] text-vscode-muted ml-0.5">(missing)</span>
+                              <span className="text-[10px] text-vscode-muted ml-0.5">{t('activeChanges.missing')}</span>
                             )}
                           </button>
                         ))}
@@ -278,7 +383,7 @@ export function ActiveChangesGrid({ changes, loading, onRunWorkflow, onOpenFile,
                     {change.tasks.length > 0 && (
                       <div>
                         <div className="text-[11px] font-semibold uppercase tracking-wider text-vscode-muted mb-2">
-                          Tasks Breakdown
+                          {t('activeChanges.tasksBreakdown')}
                         </div>
                         <div className="space-y-1 max-h-56 overflow-y-auto pr-1">
                           {change.tasks.map((task) => (

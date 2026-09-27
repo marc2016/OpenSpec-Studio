@@ -1,6 +1,7 @@
 import React from 'react';
 import Icon from '@mdi/react';
 import { mdiMagnify, mdiSortVariant, mdiFilterVariant, mdiClose } from '@mdi/js';
+import { useTranslation } from '../../i18n';
 
 export interface SelectOption {
   label: string;
@@ -28,7 +29,7 @@ export interface FilterSortToolbarProps {
 export function FilterSortToolbar({
   searchQuery,
   onSearchChange,
-  searchPlaceholder = 'Search...',
+  searchPlaceholder,
   filterValue,
   onFilterChange,
   filterOptions,
@@ -42,6 +43,8 @@ export function FilterSortToolbar({
   totalCount,
   filteredCount
 }: FilterSortToolbarProps) {
+  const { t } = useTranslation();
+  const effectivePlaceholder = searchPlaceholder || t('filterSort.search');
   const isFiltered = filteredCount !== totalCount || searchQuery.trim().length > 0 || (toggleChecked ?? false);
 
   return (
@@ -56,14 +59,14 @@ export function FilterSortToolbar({
           type="text"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder={searchPlaceholder}
+          placeholder={effectivePlaceholder}
           className="w-full pl-8 pr-7 py-1.5 rounded-md bg-vscode-bg border border-vscode-border text-vscode-fg placeholder:text-vscode-muted/70 focus:outline-none focus:border-vscode-accent text-xs transition-colors"
         />
         {searchQuery && (
           <button
             onClick={() => onSearchChange('')}
             className="absolute right-2 top-1/2 -translate-y-1/2 text-vscode-muted hover:text-vscode-fg p-0.5 rounded cursor-pointer"
-            title="Clear search"
+            title={t('filterSort.clearSearch')}
           >
             <Icon path={mdiClose} className="w-3.5 h-3.5" />
           </button>

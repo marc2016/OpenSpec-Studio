@@ -53,6 +53,7 @@ vi.mock('vscode', () => {
 describe('OpenSpecEditorProvider', () => {
   const distWebview = path.resolve(__dirname, '../dist/webview');
   const indexHtml = path.join(distWebview, 'index.html');
+  const fixtureChangeDir = path.resolve(__dirname, '../openspec/changes/fixture-change');
   let createdDummyHtml = false;
 
   beforeAll(() => {
@@ -65,12 +66,26 @@ describe('OpenSpecEditorProvider', () => {
       );
       createdDummyHtml = true;
     }
+
+    fs.mkdirSync(path.join(fixtureChangeDir, 'specs/vault'), { recursive: true });
+    fs.writeFileSync(path.join(fixtureChangeDir, 'proposal.md'), '# Proposal');
+    fs.writeFileSync(path.join(fixtureChangeDir, 'design.md'), '# Design');
+    fs.writeFileSync(path.join(fixtureChangeDir, 'tasks.md'), '# Tasks');
+    fs.writeFileSync(path.join(fixtureChangeDir, 'specs/vault/spec.md'), '# Vault Spec');
   });
 
   afterAll(() => {
     if (createdDummyHtml && fs.existsSync(indexHtml)) {
       try {
         fs.unlinkSync(indexHtml);
+      } catch {
+        // ignore
+      }
+    }
+
+    if (fs.existsSync(fixtureChangeDir)) {
+      try {
+        fs.rmSync(fixtureChangeDir, { recursive: true, force: true });
       } catch {
         // ignore
       }
@@ -167,7 +182,55 @@ describe('OpenSpecEditorProvider', () => {
           query: expect.stringContaining('Sample requirement to ask about')
         })
       );
+
+      // Test message handling: OPEN_DASHBOARD
+      await messageHandler({ command: 'OPEN_DASHBOARD' });
+      expect(vscode.commands.executeCommand).toHaveBeenCalledWith('openspec-studio.openDashboard');
+
+      // Test message handling: OPEN_FILE
+      const targetDocPath = path.join(fixtureChangeDir, 'proposal.md');
+      await messageHandler({ command: 'OPEN_FILE', filePath: targetDocPath });
+      expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
+        'vscode.openWith',
+        expect.objectContaining({ fsPath: targetDocPath }),
+        OpenSpecEditorProvider.viewType
+      );
     }
+  });
+
+  it('correctly discovers related change files for a change document', () => {
+    const provider = new OpenSpecEditorProvider(mockContext);
+    const proposalPath = path.join(fixtureChangeDir, 'proposal.md');
+    const related = provider.getRelatedChangeFiles(proposalPath);
+
+    expect(related.length).toBeGreaterThanOrEqual(3);
+    const labels = related.map((r) => r.label);
+    expect(labels).toContain('Proposal');
+    expect(labels).toContain('Design');
+    expect(labels).toContain('Tasks');
+
+    const activeItem = related.find((r) => r.active);
+    expect(activeItem?.label).toBe('Proposal');
+  });
+
+  it('correctly discovers related change files for an archived change document', () => {
+    const provider = new OpenSpecEditorProvider(mockContext);
+    const archivedProposalPath = path.resolve(
+      __dirname,
+      '../openspec/changes/archive/2026-09-25-editor-nav-and-file-switcher/proposal.md'
+    );
+    if (fs.existsSync(archivedProposalPath)) {
+      const related = provider.getRelatedChangeFiles(archivedProposalPath);
+      expect(related.length).toBeGreaterThanOrEqual(3);
+      expect(related.map((r) => r.label)).toContain('Proposal');
+    }
+  });
+
+  it('returns empty array when file is not part of an openspec change', () => {
+    const provider = new OpenSpecEditorProvider(mockContext);
+    const nonChangeDoc = path.resolve(__dirname, '../openspec/specs/custom-markdown-editor/spec.md');
+    const related = provider.getRelatedChangeFiles(nonChangeDoc);
+    expect(related).toEqual([]);
   });
 
   it('delegates to default editor when opened with a non-file scheme like git', async () => {

@@ -9,6 +9,7 @@ import {
   mdiCreation
 } from '@mdi/js';
 import { Button } from './ui/Button';
+import { useTranslation } from '../i18n';
 
 interface WorkflowBarProps {
   onRunWorkflow: (action: 'propose' | 'explore' | 'apply' | 'sync' | 'archive', changeName?: string, input?: string) => void;
@@ -16,6 +17,7 @@ interface WorkflowBarProps {
 }
 
 export function WorkflowBar({ onRunWorkflow }: WorkflowBarProps) {
+  const { t } = useTranslation();
   const [modalAction, setModalAction] = useState<'propose' | 'explore' | null>(null);
   const [inputValue, setInputValue] = useState('');
 
@@ -37,7 +39,7 @@ export function WorkflowBar({ onRunWorkflow }: WorkflowBarProps) {
           onClick={() => setModalAction('propose')}
         >
           <Icon path={mdiPlusCircleOutline} className="w-4 h-4 mr-1.5" />
-          Propose Change
+          {t('workflows.propose')}
         </Button>
 
         <Button
@@ -46,7 +48,7 @@ export function WorkflowBar({ onRunWorkflow }: WorkflowBarProps) {
           onClick={() => setModalAction('explore')}
         >
           <Icon path={mdiCompassOutline} className="w-4 h-4 mr-1.5 text-sky-400" />
-          Explore Mode
+          {t('workflows.explore')}
         </Button>
 
         <Button
@@ -55,7 +57,7 @@ export function WorkflowBar({ onRunWorkflow }: WorkflowBarProps) {
           onClick={() => onRunWorkflow('apply')}
         >
           <Icon path={mdiPlayCircleOutline} className="w-4 h-4 mr-1.5 text-emerald-400" />
-          Apply Tasks
+          {t('workflows.apply')}
         </Button>
 
         <Button
@@ -64,7 +66,7 @@ export function WorkflowBar({ onRunWorkflow }: WorkflowBarProps) {
           onClick={() => onRunWorkflow('sync')}
         >
           <Icon path={mdiSync} className="w-4 h-4 mr-1.5 text-amber-400" />
-          Sync Specs
+          {t('workflows.sync')}
         </Button>
 
         <Button
@@ -73,7 +75,7 @@ export function WorkflowBar({ onRunWorkflow }: WorkflowBarProps) {
           onClick={() => onRunWorkflow('archive')}
         >
           <Icon path={mdiArchiveArrowDownOutline} className="w-4 h-4 mr-1.5 text-indigo-400" />
-          Archive
+          {t('workflows.archive')}
         </Button>
       </div>
 
@@ -84,13 +86,13 @@ export function WorkflowBar({ onRunWorkflow }: WorkflowBarProps) {
             <div className="flex items-center gap-2 mb-2">
               <Icon path={mdiCreation} className="w-4 h-4 text-vscode-accent" />
               <h2 className="font-semibold text-base">
-                {modalAction === 'propose' ? 'Propose New Change' : 'Start Explore Mode'}
+                {modalAction === 'propose' ? t('workflows.proposeModalTitle') : t('workflows.exploreModalTitle')}
               </h2>
             </div>
             <p className="text-xs text-vscode-muted mb-4">
               {modalAction === 'propose'
-                ? 'Describe what you want to build or specify a change name (e.g. add-user-authentication).'
-                : 'Enter a topic, problem, or architectural question you want to think through.'}
+                ? t('workflows.proposeModalDesc')
+                : t('workflows.exploreModalDesc')}
             </p>
 
             <form onSubmit={handleSubmit}>
@@ -99,8 +101,8 @@ export function WorkflowBar({ onRunWorkflow }: WorkflowBarProps) {
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder={
                   modalAction === 'propose'
-                    ? 'e.g. Add real-time sync for presentations with WebSockets...'
-                    : 'e.g. Compare sqlite vs postgres for offline-first notes...'
+                    ? t('workflows.proposePlaceholder')
+                    : t('workflows.explorePlaceholder')
                 }
                 rows={3}
                 autoFocus
@@ -117,10 +119,10 @@ export function WorkflowBar({ onRunWorkflow }: WorkflowBarProps) {
                     setInputValue('');
                   }}
                 >
-                  Cancel
+                  {t('workflows.cancel')}
                 </Button>
                 <Button type="submit" variant="default" size="sm">
-                  Launch Workflow
+                  {modalAction === 'propose' ? t('workflows.submitPropose') : t('workflows.submitExplore')}
                 </Button>
               </div>
             </form>

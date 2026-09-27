@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { OpenSpecState, ToWebviewMessage, FromWebviewMessage, AiTarget } from '../../shared/types';
+import { OpenSpecState, ToWebviewMessage, FromWebviewMessage, AiTarget, GitOperationResult } from '../../shared/types';
 
 interface VsCodeApi {
   postMessage(msg: FromWebviewMessage): void;
@@ -27,9 +27,17 @@ export function getVsCodeApi(): VsCodeApi {
   return vscodeApi;
 }
 
+function getInitialLocale(): 'de' | 'en' {
+  if (typeof navigator !== 'undefined' && navigator.language) {
+    return navigator.language.toLowerCase().startsWith('de') ? 'de' : 'en';
+  }
+  return 'en';
+}
+
 const defaultInitialState: OpenSpecState = {
   isInitialized: true,
   loading: true,
+  locale: getInitialLocale(),
   aiTarget: 'copilot',
   cliInfo: {
     mode: 'auto',
@@ -44,6 +52,8 @@ const defaultInitialState: OpenSpecState = {
 export function useOpenSpecStudio() {
   const [state, setState] = useState<OpenSpecState>(defaultInitialState);
   const [notification, setNotification] = useState<{ message: string; level: string } | null>(null);
+  const [gitOperationResult, setGitOperationResult] = useState<GitOperationResult | null>(null);
+  const [isGitOperating, setIsGitOperating] = useState<boolean>(false);
   const api = useRef(getVsCodeApi()).current;
 
   useEffect(() => {
@@ -54,6 +64,9 @@ export function useOpenSpecStudio() {
       } else if (msg.type === 'NOTIFICATION') {
         setNotification({ message: msg.message, level: msg.level });
         setTimeout(() => setNotification(null), 4000);
+      } else if (msg.type === 'GIT_OPERATION_RESULT') {
+        setIsGitOperating(false);
+        setGitOperationResult(msg.result);
       }
     };
 
@@ -104,15 +117,44 @@ export function useOpenSpecStudio() {
     api.postMessage({ type: 'REQUEST_STATE' });
   }, [api]);
 
+  const createBranch = useCallback((branchName: string) => {
+    setIsGitOperating(true);
+    setGitOperationResult(null);
+    api.postMessage({ type: 'CREATE_BRANCH', branchName });
+  }, [api]);
+
+  const switchBranch = useCallback((branchName: string) => {
+    setIsGitOperating(true);
+    setGitOperationResult(null);
+    api.postMessage({ type: 'SWITCH_BRANCH', branchName });
+  }, [api]);
+
+  const commitAndPush = useCallback((message?: string) => {
+    setIsGitOperating(true);
+    setGitOperationResult(null);
+    api.postMessage({ type: 'COMMIT_AND_PUSH', message });
+  }, [api]);
+
+  const clearGitResult = useCallback(() => {
+    setGitOperationResult(null);
+  }, []);
+
   return {
     state,
+    locale: state.locale || getInitialLocale(),
     notification,
+    gitOperationResult,
+    isGitOperating,
     setAiTarget,
     runWorkflow,
     initProject,
     installCli,
     openFile,
     openChangeFolder,
-    refreshState
+    refreshState,
+    createBranch,
+    switchBranch,
+    commitAndPush,
+    clearGitResult
   };
 }

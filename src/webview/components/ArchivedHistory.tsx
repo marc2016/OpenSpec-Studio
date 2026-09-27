@@ -12,6 +12,7 @@ import { Button } from './ui/Button';
 import { FilterSortToolbar } from './ui/FilterSortToolbar';
 import { SkeletonCard } from './ui/SkeletonCard';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
+import { useTranslation } from '../i18n';
 
 interface ArchivedHistoryProps {
   archived: OpenSpecArchivedChange[];
@@ -19,16 +20,17 @@ interface ArchivedHistoryProps {
   onOpenFolder: (path: string) => void;
 }
 
-const SORT_OPTIONS = [
-  { label: 'Archived date (Newest first)', value: 'date-desc' },
-  { label: 'Archived date (Oldest first)', value: 'date-asc' },
-  { label: 'Name (A → Z)', value: 'name-asc' },
-  { label: 'Name (Z → A)', value: 'name-desc' }
-];
-
 export function ArchivedHistory({ archived, loading, onOpenFolder }: ArchivedHistoryProps) {
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useLocalStorageState('openspec.archived.sort', 'date-desc');
+
+  const sortOptions = useMemo(() => [
+    { label: t('filterSort.sortDateDesc'), value: 'date-desc' },
+    { label: t('filterSort.sortDateAsc'), value: 'date-asc' },
+    { label: t('filterSort.sortNameAsc'), value: 'name-asc' },
+    { label: t('filterSort.sortNameDesc'), value: 'name-desc' }
+  ], [t]);
 
   const filteredAndSortedArchived = useMemo(() => {
     let result = archived.slice();
@@ -64,9 +66,9 @@ export function ArchivedHistory({ archived, loading, onOpenFolder }: ArchivedHis
     return (
       <Card className="border-dashed py-8 text-center">
         <Icon path={mdiArchiveOutline} className="w-8 h-8 text-vscode-muted mx-auto mb-2 opacity-50" />
-        <h4 className="text-sm font-medium">No Archived Changes</h4>
+        <h4 className="text-sm font-medium">{t('archived.emptyTitle')}</h4>
         <p className="text-xs text-vscode-muted mt-1 max-w-xs mx-auto">
-          Completed changes archived via <code className="font-mono text-xs">/opsx-archive</code> will appear here.
+          {t('archived.emptyDesc')}
         </p>
       </Card>
     );
@@ -77,10 +79,10 @@ export function ArchivedHistory({ archived, loading, onOpenFolder }: ArchivedHis
       <FilterSortToolbar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        searchPlaceholder="Search archived changes..."
+        searchPlaceholder={t('archived.filterPlaceholder')}
         sortValue={sortBy}
         onSortChange={setSortBy}
-        sortOptions={SORT_OPTIONS}
+        sortOptions={sortOptions}
         totalCount={archived.length}
         filteredCount={filteredAndSortedArchived.length}
       />
@@ -88,13 +90,13 @@ export function ArchivedHistory({ archived, loading, onOpenFolder }: ArchivedHis
       {filteredAndSortedArchived.length === 0 ? (
         <Card className="border-dashed py-8 text-center bg-vscode-bg/30">
           <Icon path={mdiFilterOffOutline} className="w-8 h-8 text-vscode-muted mx-auto mb-2 opacity-50" />
-          <h4 className="text-sm font-medium">No Matching Archived Changes</h4>
+          <h4 className="text-sm font-medium">{t('archived.noMatchTitle')}</h4>
           <p className="text-xs text-vscode-muted mt-1 max-w-sm mx-auto">
-            No archived changes match your current search query.
+            {t('archived.noMatchDesc')}
           </p>
           <div className="mt-3">
             <Button variant="outline" size="sm" onClick={() => setSearchQuery('')}>
-              Clear Search
+              {t('filterSort.clearSearch')}
             </Button>
           </div>
         </Card>
@@ -113,7 +115,7 @@ export function ArchivedHistory({ archived, loading, onOpenFolder }: ArchivedHis
                       {item.archivedDate && (
                         <div className="flex items-center gap-1 text-[11px] text-vscode-muted mt-0.5">
                           <Icon path={mdiCalendarOutline} className="w-3 h-3" />
-                          <span>Archived: {item.archivedDate}</span>
+                          <span>{t('archived.archivedOn', { date: item.archivedDate })}</span>
                         </div>
                       )}
                     </div>
@@ -123,7 +125,7 @@ export function ArchivedHistory({ archived, loading, onOpenFolder }: ArchivedHis
                     variant="outline"
                     size="sm"
                     onClick={() => onOpenFolder(item.path)}
-                    title="Open archived change folder"
+                    title={t('archived.openFolder')}
                   >
                     <Icon path={mdiFolderOpenOutline} className="w-3.5 h-3.5" />
                   </Button>

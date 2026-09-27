@@ -4,7 +4,8 @@ import * as fs from 'fs';
 import { WorkspaceDetector } from './WorkspaceDetector';
 import { CliAdapter } from './CliAdapter';
 import { WorkflowOrchestrator } from './WorkflowOrchestrator';
-import { OpenSpecState, FromWebviewMessage, ToWebviewMessage, AiTarget, CliMode } from '../shared/types';
+import { GitAdapter } from './GitAdapter';
+import { OpenSpecState, FromWebviewMessage, ToWebviewMessage, AiTarget, CliMode, GitState } from '../shared/types';
 import { OpenSpecEditorProvider } from '../customEditor/OpenSpecEditorProvider';
 
 export class StudioDashboardPanel {
@@ -20,7 +21,8 @@ export class StudioDashboardPanel {
     extensionUri: vscode.Uri,
     workspaceDetector: WorkspaceDetector,
     cliAdapter: CliAdapter,
-    orchestrator: WorkflowOrchestrator
+    orchestrator: WorkflowOrchestrator,
+    gitAdapter?: GitAdapter
   ): StudioDashboardPanel {
     const column = vscode.window.activeTextEditor
       ? vscode.window.activeTextEditor.viewColumn
@@ -54,7 +56,8 @@ export class StudioDashboardPanel {
       extensionUri,
       workspaceDetector,
       cliAdapter,
-      orchestrator
+      orchestrator,
+      gitAdapter
     );
 
     return StudioDashboardPanel.currentPanel;
@@ -65,7 +68,8 @@ export class StudioDashboardPanel {
     extensionUri: vscode.Uri,
     private readonly detector: WorkspaceDetector,
     private readonly cliAdapter: CliAdapter,
-    private readonly orchestrator: WorkflowOrchestrator
+    private readonly orchestrator: WorkflowOrchestrator,
+    private readonly gitAdapter: GitAdapter = new GitAdapter()
   ) {
     this.panel = panel;
     this.extensionUri = extensionUri;
@@ -112,6 +116,9 @@ export class StudioDashboardPanel {
   }
 
   public async broadcastState(): Promise<void> {
+    const rawLang = vscode.env.language || '';
+    const locale: 'de' | 'en' = rawLang.toLowerCase().startsWith('de') ? 'de' : 'en';
+
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (!workspaceFolders || workspaceFolders.length === 0) {
       this.postMessage({
@@ -124,6 +131,7 @@ export class StudioDashboardPanel {
           changes: [],
           specs: [],
           archived: [],
+          locale,
           error: 'No workspace folder open.'
         }
       });
@@ -137,6 +145,13 @@ export class StudioDashboardPanel {
     let changes: any[] = [];
     let specs: any[] = [];
     let archived: any[] = [];
+    let gitState: GitState = { isGitRepo: false, uncommittedCount: 0 };
+
+    try {
+      gitState = await this.gitAdapter.getGitState(rootPath);
+    } catch {
+      // Ignore git query errors
+    }
 
     if (isInitialized) {
       [cliInfo, changes, specs, archived] = await Promise.all([
@@ -157,6 +172,8 @@ export class StudioDashboardPanel {
       changes,
       specs,
       archived,
+      git: gitState,
+      locale,
       loading: false
     };
 
@@ -230,6 +247,42 @@ export class StudioDashboardPanel {
         if (fs.existsSync(changePath)) {
           vscode.commands.executeCommand('revealInExplorer', vscode.Uri.file(changePath));
         }
+        break;
+      }
+
+      case 'CREATE_BRANCH': {
+        const result = await this.gitAdapter.createBranch(workspaceRoot, message.branchName);
+        this.postMessage({ type: 'GIT_OPERATION_RESULT', result });
+        if (result.success) {
+          vscode.window.showInformationMessage(result.message || `Switched to branch '${message.branchName}'`);
+        } else {
+          vscode.window.showErrorMessage(result.error || 'Failed to create branch');
+        }
+        await this.broadcastState();
+        break;
+      }
+
+      case 'SWITCH_BRANCH': {
+        const result = await this.gitAdapter.switchBranch(workspaceRoot, message.branchName);
+        this.postMessage({ type: 'GIT_OPERATION_RESULT', result });
+        if (result.success) {
+          vscode.window.showInformationMessage(result.message || `Switched to branch '${message.branchName}'`);
+        } else {
+          vscode.window.showErrorMessage(result.error || 'Failed to switch branch');
+        }
+        await this.broadcastState();
+        break;
+      }
+
+      case 'COMMIT_AND_PUSH': {
+        const result = await this.gitAdapter.commitAndPush(workspaceRoot, message.message);
+        this.postMessage({ type: 'GIT_OPERATION_RESULT', result });
+        if (result.success) {
+          vscode.window.showInformationMessage(result.message || 'Saved and pushed successfully!');
+        } else {
+          vscode.window.showErrorMessage(result.error || 'Failed to save and push');
+        }
+        await this.broadcastState();
         break;
       }
     }

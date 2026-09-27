@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { WorkflowOrchestrator } from '../core/WorkflowOrchestrator';
-import { AiTarget } from '../shared/types';
+import { AiTarget, RelatedFileItem } from '../shared/types';
 
 export class OpenSpecEditorProvider implements vscode.CustomTextEditorProvider {
   public static readonly viewType = 'openspec.markdownEditor';
@@ -90,14 +90,20 @@ export class OpenSpecEditorProvider implements vscode.CustomTextEditorProvider {
 
     let lastWebviewText = document.getText();
 
+    const rawLang = vscode.env.language || 'en';
+    const locale: 'de' | 'en' = rawLang.toLowerCase().startsWith('de') ? 'de' : 'en';
+
     const postInit = () => {
       lastWebviewText = document.getText();
+      const relatedFiles = this.getRelatedChangeFiles(document.uri.fsPath);
       webview.postMessage({
         type: 'INIT_EDITOR',
         filePath: document.uri.fsPath,
         content: document.getText(),
         isDirty: document.isDirty,
-        targetRequirement: pendingTarget
+        targetRequirement: pendingTarget,
+        relatedFiles,
+        locale
       });
     };
 
@@ -165,6 +171,27 @@ export class OpenSpecEditorProvider implements vscode.CustomTextEditorProvider {
           break;
         }
 
+        case 'OPEN_DASHBOARD': {
+          try {
+            await vscode.commands.executeCommand('openspec-studio.openDashboard');
+          } catch (err: any) {
+            vscode.window.showErrorMessage(`Failed to open dashboard: ${err.message}`);
+          }
+          break;
+        }
+
+        case 'OPEN_FILE': {
+          const targetPath = message.filePath;
+          if (targetPath && typeof targetPath === 'string' && fs.existsSync(targetPath)) {
+            try {
+              await vscode.commands.executeCommand('vscode.openWith', vscode.Uri.file(targetPath), OpenSpecEditorProvider.viewType);
+            } catch (err: any) {
+              vscode.window.showErrorMessage(`Failed to open file: ${err.message}`);
+            }
+          }
+          break;
+        }
+
         case 'ADD_TO_CHAT': {
           const selectedText = message.text;
           if (selectedText && typeof selectedText === 'string') {
@@ -220,11 +247,16 @@ export class OpenSpecEditorProvider implements vscode.CustomTextEditorProvider {
     });
 
     // Inject mode=editor flag script and initial document data
+    const relatedFiles = this.getRelatedChangeFiles(document.uri.fsPath);
+    const rawLang = vscode.env.language || 'en';
+    const locale: 'de' | 'en' = rawLang.toLowerCase().startsWith('de') ? 'de' : 'en';
     const initialData = JSON.stringify({
       mode: 'editor',
       filePath: document.uri.fsPath,
       content: document.getText(),
-      targetRequirement: targetRequirement || undefined
+      targetRequirement: targetRequirement || undefined,
+      relatedFiles,
+      locale
     }).replace(/</g, '\\u003c');
 
     const modeScript = `<script>window.OPENSPEC_MODE = "editor"; window.OPENSPEC_DATA = ${initialData};</script>`;
@@ -237,5 +269,83 @@ export class OpenSpecEditorProvider implements vscode.CustomTextEditorProvider {
     }
 
     return html;
+  }
+
+  public getRelatedChangeFiles(docPath: string): RelatedFileItem[] {
+    const normalized = docPath.replace(/\\/g, '/');
+    const match = normalized.match(/(?:^|\/)openspec\/changes\/(?:archive\/)?([^/]+)(?:\/|$)/);
+    if (!match) {
+      return [];
+    }
+
+    const changeName = match[1];
+    const isArchive = normalized.includes(`/openspec/changes/archive/${changeName}`);
+    const marker = isArchive
+      ? `/openspec/changes/archive/${changeName}`
+      : `/openspec/changes/${changeName}`;
+    const idx = normalized.indexOf(marker);
+    if (idx === -1) {
+      return [];
+    }
+
+    const changeDir = docPath.slice(0, idx + marker.length);
+    if (!fs.existsSync(changeDir)) {
+      return [];
+    }
+
+    const items: RelatedFileItem[] = [];
+
+    const checkFile = (fileName: string, label: string, kind: RelatedFileItem['kind']) => {
+      const fullPath = path.join(changeDir, fileName);
+      if (fs.existsSync(fullPath)) {
+        items.push({
+          label,
+          filePath: fullPath,
+          kind,
+          active: path.resolve(fullPath) === path.resolve(docPath)
+        });
+      }
+    };
+
+    // 1. Proposal
+    checkFile('proposal.md', 'Proposal', 'proposal');
+
+    // 2. Specs
+    const specsDir = path.join(changeDir, 'specs');
+    if (fs.existsSync(specsDir)) {
+      const findSpecFiles = (dir: string) => {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+          const entryPath = path.join(dir, entry.name);
+          if (entry.isDirectory()) {
+            findSpecFiles(entryPath);
+          } else if (entry.isFile() && entry.name.endsWith('.md')) {
+            const relToSpecs = path.relative(specsDir, entryPath).replace(/\\/g, '/');
+            const specLabel = relToSpecs.endsWith('/spec.md')
+              ? `Spec: ${relToSpecs.slice(0, -'/spec.md'.length)}`
+              : `Spec: ${relToSpecs.replace(/\.md$/, '')}`;
+            items.push({
+              label: specLabel,
+              filePath: entryPath,
+              kind: 'spec',
+              active: path.resolve(entryPath) === path.resolve(docPath)
+            });
+          }
+        }
+      };
+      try {
+        findSpecFiles(specsDir);
+      } catch (err) {
+        // ignore read error
+      }
+    }
+
+    // 3. Design
+    checkFile('design.md', 'Design', 'design');
+
+    // 4. Tasks
+    checkFile('tasks.md', 'Tasks', 'tasks');
+
+    return items;
   }
 }

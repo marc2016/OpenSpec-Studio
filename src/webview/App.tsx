@@ -6,6 +6,8 @@ import { OnboardingView } from './components/OnboardingView';
 import { ActiveChangesGrid } from './components/ActiveChangesGrid';
 import { SpecsExplorer } from './components/SpecsExplorer';
 import { ArchivedHistory } from './components/ArchivedHistory';
+import { GitShareModal } from './components/GitShareModal';
+import { I18nProvider, useTranslation } from './i18n';
 import Icon from '@mdi/react';
 import {
   mdiSourcePull,
@@ -15,20 +17,34 @@ import {
   mdiInformation
 } from '@mdi/js';
 
-export default function App() {
-  const {
-    state,
-    notification,
-    setAiTarget,
-    runWorkflow,
-    initProject,
-    installCli,
-    openFile,
-    openChangeFolder,
-    refreshState
-  } = useOpenSpecStudio();
-
+function StudioApp({
+  state,
+  notification,
+  gitOperationResult,
+  isGitOperating,
+  setAiTarget,
+  runWorkflow,
+  initProject,
+  installCli,
+  openFile,
+  openChangeFolder,
+  refreshState,
+  createBranch,
+  switchBranch,
+  commitAndPush,
+  clearGitResult
+}: ReturnType<typeof useOpenSpecStudio>) {
+  const { t, locale } = useTranslation();
   const [activeTab, setActiveTab] = useState<'changes' | 'specs' | 'archived'>('changes');
+  const [gitModalState, setGitModalState] = useState<{
+    isOpen: boolean;
+    mode: 'share' | 'branch';
+    defaultBranchName?: string;
+    defaultNote?: string;
+  }>({
+    isOpen: false,
+    mode: 'share'
+  });
 
   return (
     <div className="min-h-screen bg-vscode-bg text-vscode-fg flex flex-col p-4 sm:p-6 max-w-7xl mx-auto">
@@ -49,6 +65,15 @@ export default function App() {
         loading={state.loading}
         onSetAiTarget={setAiTarget}
         onRefresh={refreshState}
+        gitState={state.git}
+        onOpenShareModal={() => {
+          clearGitResult();
+          setGitModalState({ isOpen: true, mode: 'share' });
+        }}
+        onOpenBranchModal={() => {
+          clearGitResult();
+          setGitModalState({ isOpen: true, mode: 'branch' });
+        }}
       />
 
       {/* Main Content */}
@@ -77,7 +102,7 @@ export default function App() {
               }`}
             >
               <Icon path={mdiSourcePull} className="w-3.5 h-3.5" />
-              Active Changes
+              {t('tabs.activeChanges')}
               <span className={`ml-1 px-1.5 py-0.2 rounded-full bg-vscode-card text-[10px] border border-vscode-border min-w-[20px] text-center font-mono ${
                 state.loading && state.changes.length === 0 ? 'animate-pulse text-vscode-accent' : ''
               }`}>
@@ -94,7 +119,7 @@ export default function App() {
               }`}
             >
               <Icon path={mdiBookOpenPageVariantOutline} className="w-3.5 h-3.5" />
-              Durable Specs
+              {t('tabs.durableSpecs')}
               <span className={`ml-1 px-1.5 py-0.2 rounded-full bg-vscode-card text-[10px] border border-vscode-border min-w-[20px] text-center font-mono ${
                 state.loading && state.specs.length === 0 ? 'animate-pulse text-vscode-accent' : ''
               }`}>
@@ -111,7 +136,7 @@ export default function App() {
               }`}
             >
               <Icon path={mdiArchiveOutline} className="w-3.5 h-3.5" />
-              Archived History
+              {t('tabs.archivedHistory')}
               <span className={`ml-1 px-1.5 py-0.2 rounded-full bg-vscode-card text-[10px] border border-vscode-border min-w-[20px] text-center font-mono ${
                 state.loading && state.archived.length === 0 ? 'animate-pulse text-vscode-accent' : ''
               }`}>
@@ -129,6 +154,25 @@ export default function App() {
                 onRunWorkflow={runWorkflow}
                 onOpenFile={openFile}
                 onOpenFolder={openChangeFolder}
+                gitState={state.git}
+                onOpenBranchModal={(changeName) => {
+                  clearGitResult();
+                  setGitModalState({
+                    isOpen: true,
+                    mode: 'branch',
+                    defaultBranchName: `change/${changeName}`
+                  });
+                }}
+                onOpenShareModal={(changeName) => {
+                  clearGitResult();
+                  setGitModalState({
+                    isOpen: true,
+                    mode: 'share',
+                    defaultNote: locale === 'de'
+                      ? `Spezifikationen für ${changeName} aktualisiert`
+                      : `Update specifications for ${changeName}`
+                  });
+                }}
               />
             )}
 
@@ -150,6 +194,32 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Git Share & Branch Modal */}
+      <GitShareModal
+        isOpen={gitModalState.isOpen}
+        mode={gitModalState.mode}
+        onClose={() => {
+          setGitModalState((prev) => ({ ...prev, isOpen: false }));
+          clearGitResult();
+        }}
+        gitState={state.git}
+        isOperating={isGitOperating}
+        result={gitOperationResult}
+        onCommitAndPush={commitAndPush}
+        onCreateBranch={createBranch}
+        defaultBranchName={gitModalState.defaultBranchName}
+        defaultNote={gitModalState.defaultNote}
+      />
     </div>
+  );
+}
+
+export default function App() {
+  const studio = useOpenSpecStudio();
+  return (
+    <I18nProvider locale={studio.state.locale}>
+      <StudioApp {...studio} />
+    </I18nProvider>
   );
 }
